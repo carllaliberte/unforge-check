@@ -1,20 +1,11 @@
 name: check
-
+# L'état désiré est le workflow `constat`.
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
-
 permissions:
   contents: read
-
 jobs:
-  example:
+  pointer:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./
-        with:
-          file: examples/bienvenue.txt
-          proof: examples/bienvenue.txt.unforge.json
+      - run: echo "voir .github/workflows/constat.yml"
