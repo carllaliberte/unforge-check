@@ -1,0 +1,37 @@
+name: constat
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  contrat:
+    runs-on: ubuntu-latest
+    steps:
+      - name: connect
+        uses: actions/checkout@v4
+
+      - name: schema
+        run: |
+          python3 contrat.py
+
+      - name: examples
+        uses: ./
+        with:
+          file: examples/bienvenue.txt
+          proof: examples/bienvenue.txt.unforge.json
+
+      - name: workflows
+        run: |
+          test -f action.yml
+          test -f examples/constat.yml
+          test -f .github/workflows/constat.yml
+          python3 -c "import pathlib; assert 'concurrency' in pathlib.Path('.github/workflows/constat.yml').read_text()"
