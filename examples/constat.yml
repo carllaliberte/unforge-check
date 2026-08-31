@@ -1,0 +1,11 @@
+name: constat
+on: [push, pull_request]
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: carllaliberte/unforge-check@main
+        with:
+          file: docs/contrat.pdf
+          proof: docs/contrat.pdf.unforge.json

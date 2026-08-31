@@ -45,8 +45,7 @@ def verify_sig(paquet, message) -> bool:
         return False
     return verify_ed(ed_pub, message, ed_sig) and verify_ml(paquet.get("card_public_pq") or "", message, ml_sig)
 
-def check(preuve: Path, fichier: Path | None) -> dict:
-    paquet = json.loads(preuve.read_text(encoding="utf-8"))
+def check_paquet(paquet: dict, fichier: Path | None) -> dict:
     if paquet.get("format") != FORMAT:
         return {"ok": False, "erreur": "format"}
     emp_ok = empreinte(paquet) == paquet.get("empreinte")
@@ -63,6 +62,10 @@ def check(preuve: Path, fichier: Path | None) -> dict:
         fichier_ok = sha == attendu and objet.get("octets") in (None, len(brut))
     ok = bool(emp_ok and sig_ok and fichier_ok is not False)
     return {"ok": ok, "empreinte_ok": emp_ok, "signature_ok": sig_ok, "fichier_ok": fichier_ok, "sha256": sha, "id": paquet.get("id"), "card_id": paquet.get("card_id"), "marque": "UNFORGE", "noeud": "non requis"}
+
+def check(preuve: Path, fichier: Path | None) -> dict:
+    paquet = json.loads(preuve.read_text(encoding="utf-8"))
+    return check_paquet(paquet, fichier)
 
 def main() -> int:
     p = argparse.ArgumentParser(description="UNFORGE Check")
