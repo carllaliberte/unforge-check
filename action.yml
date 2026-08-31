@@ -1,0 +1,25 @@
+name: UNFORGE Check
+description: Verify a file still matches its .unforge.json. No node. No network.
+author: Carl Laliberté
+branding:
+  icon: check-circle
+  color: gray-dark
+inputs:
+  file:
+    description: File that was attested
+    required: true
+  proof:
+    description: Path to the .unforge.json
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - name: install checker
+      shell: bash
+      run: pip install -r "${{ github.action_path }}/requirements.txt"
+    - name: verify
+      shell: bash
+      run: python "${{ github.action_path }}/check.py" "${{ inputs.file }}" "${{ inputs.proof }}"
