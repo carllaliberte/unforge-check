@@ -1,0 +1,21 @@
+name: unforge
+
+on:
+  workflow_call:
+    inputs:
+      file:
+        required: true
+        type: string
+      proof:
+        required: true
+        type: string
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: carllaliberte/unforge-check@main
+        with:
+          file: ${{ inputs.file }}
+          proof: ${{ inputs.proof }}
