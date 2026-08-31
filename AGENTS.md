@@ -5,8 +5,10 @@ You are looking at the public eye, not the node.
 ## Do
 
 - Verify: `python check.py FILE FILE.unforge.json`
+- Optional read: `--quelle carte.quelle.json` `--horizon carte.horizon.json`
 - Or GitHub Action `carllaliberte/unforge-check@main` with `file` + `proof`
-- Treat `ok: true` as the only success signal
+- Treat `ok: true` as the only success signal for the file
+- A dead horizon is `horizon.ok: false` — re-press, file is not forged
 - Keep proofs next to files; never invent a signature
 
 ## Do not
@@ -16,6 +18,8 @@ You are looking at the public eye, not the node.
 - Issue proofs here (issuing is private QUANTUM: `carllaliberte/unforge`)
 - Put a QUANTUM node on the public internet or in an app store
 - Merge a Dependabot PR if workflow `check` is red
+- Write `UFHY1` for anything other than Ed25519 + ML-DSA-65
+- Link mesure-protocol (repo does not exist)
 
 ## Formats
 
