@@ -7,3 +7,5 @@ CLI : `python -m quantum peut-dire --fichier carte.json`
 Exit 2 = classique. Exit 0 = les quatre tiennent.
 
 Cette rail vérifie. Elle ne collapse pas MODE.
+
+Étages 2/3/4 en parallèle (preview, SDK, consommateurs). 0 slug. 0 data. 0 contract.
