@@ -1,13 +1,30 @@
 # UNFORGE Check
 
-Drop a file. Drop the `.unforge.json` next to it. Green or red.
+Drop a file. The card sits beside it. Green or red.
 
 ```bash
 git clone https://github.com/carllaliberte/unforge-check
 cd unforge-check
 pip install -r requirements.txt
-python3 check.py examples/bienvenue.txt examples/bienvenue.txt.unforge.json
+python3 check.py examples/bienvenue.txt
 ```
+
+One command. Check looks for `FILE.unforge.json` next to the file. Or name both:
+
+```bash
+python3 check.py examples/bienvenue.txt examples/bienvenue.txt.unforge.json
+python3 check.py examples/bienvenue.txt --human
+```
+
+`--human` prints `VERT` / `ROUGE` / `AMBRE`. Default is the machine record (`ok: true` is the only pass for the file). Exit 0 match · 1 refuse · 2 unreadable.
+
+Agents and other tools — no server:
+
+```bash
+python3 check.py --schema
+```
+
+See [INTEROP.md](INTEROP.md). `from check import verifier`.
 
 Optional cards — read, do not sign:
 

@@ -23,6 +23,13 @@ jobs:
         run: |
           python3 contrat.py
 
+      - name: tests
+        run: |
+          pip install -q -r requirements.txt
+          python3 -m unittest discover -s tests -v
+          python3 check.py --schema | python3 -c "import json,sys; json.load(sys.stdin)"
+          python3 check.py examples/bienvenue.txt
+
       - name: examples
         uses: ./
         with:

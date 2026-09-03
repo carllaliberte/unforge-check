@@ -4,8 +4,9 @@ You are looking at the public eye, not the node.
 
 ## Do
 
-- Verify: `python check.py FILE FILE.unforge.json`
+- Verify: `python check.py FILE` (looks for `FILE.unforge.json`) or `python check.py FILE FILE.unforge.json`
 - Optional read: `--quelle carte.quelle.json` `--horizon carte.horizon.json`
+- Interop (no server): `python check.py --schema` · `from check import verifier` · INTEROP.md
 - Or GitHub Action `carllaliberte/unforge-check@main` with `file` + `proof`
 - Treat `ok: true` as the only success signal for the file
 - A dead horizon is `horizon.ok: false` — re-press, file is not forged

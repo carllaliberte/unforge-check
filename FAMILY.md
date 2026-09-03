@@ -22,6 +22,6 @@ UNFORGE tools (this eye):
 | [unforge-retract](https://github.com/carllaliberte/unforge-retract) | retirer sans effacer |
 
 `UFHY1` = Ed25519 + ML-DSA-65.
-`python3 check.py FILE FILE.unforge.json --quelle carte.quelle.json --horizon carte.horizon.json`
+`python3 check.py FILE` looks for `FILE.unforge.json`. Agents: `python3 check.py --schema` · INTEROP.md.
 
 No public QUANTUM. No coin. No MESURE repo yet — do not link it.
