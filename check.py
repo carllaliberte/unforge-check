@@ -3,7 +3,13 @@
 Optional: read a QUELLE card and an HORIZON card. Does not sign.
 """
 from __future__ import annotations
-import argparse, base64, hashlib, json
+
+import argparse
+import base64
+import hashlib
+import json
+import os
+import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -12,6 +18,14 @@ HY = "UFHY1:"
 QUELLE_FMT = "quelle.v0"
 HORIZON_FMT = "horizon.v0"
 SUITES = ("ed25519", "UFHY1", "mldsa87")
+SCHEMA_ID = "check.v0"
+SCHEMA_PATH = Path(__file__).resolve().parent / "schema" / "check.v0.json"
+
+# Quantum green / refuse red / horizon amber. No mysticism — just the flux.
+VERT = "\033[38;2;57;255;136m"
+ROUGE = "\033[38;2;255;77;79m"
+AMBRE = "\033[38;2;245;200;66m"
+RESET = "\033[0m"
 
 
 def b64d(s: str) -> bytes:
@@ -115,23 +129,73 @@ def lire_horizon(chemin: Path) -> dict:
     }
 
 
+def phrase_check(rec: dict) -> str:
+    err = rec.get("erreur")
+    if err == "format":
+        return "pas UNFORGE-PREUVE-v1."
+    if err == "cette preuve ne constate pas un fichier":
+        return "cette carte ne constate pas un fichier."
+    if err == "preuve introuvable":
+        return "aucune carte à côté du fichier."
+    if err == "fichier introuvable":
+        return "fichier introuvable."
+    if err == "json":
+        return "JSON illisible."
+    if rec.get("empreinte_ok") is False:
+        base = "l'empreinte ne tient pas."
+    elif rec.get("signature_ok") is False:
+        base = "la signature ne tient pas."
+    elif rec.get("fichier_ok") is False:
+        base = "le fichier ne correspond pas à la carte."
+    elif rec.get("ok") and rec.get("fichier_ok") is None:
+        base = "la carte tient. aucun fichier présenté."
+    elif rec.get("ok"):
+        base = "le fichier correspond à la carte."
+    elif err:
+        base = str(err)
+    else:
+        base = "refus."
+    extras: list[str] = []
+    quelle = rec.get("quelle")
+    if isinstance(quelle, dict) and quelle.get("ok") is False:
+        extras.append(quelle.get("note") or quelle.get("erreur") or "quelle refusée.")
+    horizon = rec.get("horizon")
+    if isinstance(horizon, dict) and horizon.get("ok") is False:
+        extras.append(horizon.get("note") or horizon.get("erreur") or "horizon périmé. resseller.")
+    return " ".join([base, *extras])
+
+
+def habiller(rec: dict) -> dict:
+    rec.setdefault("geste", "check")
+    rec.setdefault("marque", "UNFORGE")
+    rec.setdefault("noeud", "non requis")
+    rec.setdefault("schema", SCHEMA_ID)
+    rec["phrase"] = phrase_check(rec)
+    return rec
+
+
 def check_paquet(paquet: dict, fichier: Path | None) -> dict:
     if paquet.get("format") != FORMAT:
-        return {"ok": False, "erreur": "format"}
+        return habiller({"ok": False, "erreur": "format"})
     emp_ok = empreinte(paquet) == paquet.get("empreinte")
     sig_ok = verify_sig(paquet, materiau(paquet))
     fichier_ok = None
     sha = None
+    sha_attendu = None
+    octets = None
+    octets_attendus = None
     if fichier is not None:
         brut = fichier.read_bytes()
         sha = hashlib.sha256(brut).hexdigest()
+        octets = len(brut)
         objet = paquet.get("objet") or {}
-        attendu = objet.get("sha256")
-        if not attendu:
-            return {"ok": False, "erreur": "cette preuve ne constate pas un fichier"}
-        fichier_ok = sha == attendu and objet.get("octets") in (None, len(brut))
+        sha_attendu = objet.get("sha256")
+        octets_attendus = objet.get("octets")
+        if not sha_attendu:
+            return habiller({"ok": False, "erreur": "cette preuve ne constate pas un fichier"})
+        fichier_ok = sha == sha_attendu and objet.get("octets") in (None, octets)
     ok = bool(emp_ok and sig_ok and fichier_ok is not False)
-    return {
+    rec = {
         "ok": ok,
         "empreinte_ok": emp_ok,
         "signature_ok": sig_ok,
@@ -142,39 +206,194 @@ def check_paquet(paquet: dict, fichier: Path | None) -> dict:
         "marque": "UNFORGE",
         "noeud": "non requis",
     }
+    if sha_attendu is not None:
+        rec["sha256_attendu"] = sha_attendu
+    if octets is not None:
+        rec["octets"] = octets
+    if octets_attendus is not None:
+        rec["octets_attendus"] = octets_attendus
+    return habiller(rec)
 
 
 def check(preuve: Path, fichier: Path | None) -> dict:
+    """Verify a card. Optional file. Never signs. Agents: this is the hook."""
     paquet = json.loads(preuve.read_text(encoding="utf-8"))
     return check_paquet(paquet, fichier)
 
 
-def main() -> int:
-    p = argparse.ArgumentParser(description="UNFORGE Check")
-    p.add_argument("paths", nargs="+")
-    p.add_argument("--quelle", default=None, help="carte .quelle.json à lire (ne signe pas)")
-    p.add_argument("--horizon", default=None, help="fiche .horizon.json à lire (ne signe pas)")
-    args = p.parse_args()
-    chemins = [Path(x) for x in args.paths]
+def verifier(
+    preuve: Path,
+    fichier: Path | None = None,
+    quelle: Path | None = None,
+    horizon: Path | None = None,
+) -> dict:
+    """One call for other agents and tools. Local. No server. Does not sign."""
+    rec = check(preuve, fichier)
+    if quelle is not None:
+        rec["quelle"] = lire_quelle(quelle)
+    if horizon is not None:
+        rec["horizon"] = lire_horizon(horizon)
+    rec["phrase"] = phrase_check(rec)
+    return rec
+
+
+def schema() -> dict:
+    return json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+
+
+def satellites_ok(rec: dict) -> bool:
+    for cle in ("quelle", "horizon"):
+        if cle in rec and rec[cle].get("ok") is False:
+            return False
+    return True
+
+
+def code_sortie(rec: dict) -> int:
+    return 0 if rec.get("ok") and satellites_ok(rec) else 1
+
+
+def voisin_carte(fichier: Path) -> Path:
+    return Path(str(fichier) + ".unforge.json")
+
+
+def resoudre(chemins: list[Path]) -> tuple[Path, Path | None]:
+    """Pick the card and the optional file. One path may be the file alone."""
+    if len(chemins) == 1:
+        seul = chemins[0]
+        if seul.name.endswith(".unforge.json"):
+            return seul, None
+        carte = voisin_carte(seul)
+        if carte.is_file():
+            return carte, seul
+        raise FileNotFoundError("preuve introuvable")
     preuve = next((c for c in chemins if c.name.endswith(".unforge.json")), chemins[-1])
     fichier = next((c for c in chemins if c != preuve), None)
+    return preuve, fichier
+
+
+def _colorer() -> bool:
+    if os.environ.get("NO_COLOR"):
+        return False
+    return sys.stderr.isatty() or sys.stdout.isatty()
+
+
+def ligne_verdict(rec: dict, color: bool) -> str:
+    fichier_tient = rec.get("ok") is True
+    sat = satellites_ok(rec)
+    if fichier_tient and sat:
+        mot, teinte = "VERT", VERT
+    elif fichier_tient and not sat:
+        mot, teinte = "AMBRE", AMBRE
+    else:
+        mot, teinte = "ROUGE", ROUGE
+    if color:
+        mot = f"{teinte}{mot}{RESET}"
+    return f"{mot}  {rec.get('phrase')}"
+
+
+def lignes_humaines(rec: dict, color: bool) -> list[str]:
+    lignes = [ligne_verdict(rec, color)]
+    ident = rec.get("id")
+    carte = rec.get("card_id")
+    if ident or carte:
+        lignes.append(f"      {' · '.join(x for x in (ident, carte) if x)}")
+    if rec.get("fichier_ok") is False:
+        if rec.get("sha256"):
+            lignes.append(f"      obtenu  {rec['sha256']}")
+        if rec.get("sha256_attendu"):
+            lignes.append(f"      carte   {rec['sha256_attendu']}")
+    elif rec.get("sha256"):
+        lignes.append(f"      sha256 {rec['sha256']}")
+    return lignes
+
+
+def imprimer_humain(rec: dict, dest) -> None:
+    color = dest.isatty() and not os.environ.get("NO_COLOR")
+    dest.write("\n".join(lignes_humaines(rec, color)) + "\n")
+
+
+def main(argv: list[str] | None = None) -> int:
+    p = argparse.ArgumentParser(
+        prog="check.py",
+        description="UNFORGE Check — prove a file still matches the card that sealed it. No node. No cloud. No coin. Does not sign.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "examples:\n"
+            "  python3 check.py document.pdf\n"
+            "  python3 check.py document.pdf document.pdf.unforge.json\n"
+            "  python3 check.py document.pdf document.pdf.unforge.json --human\n"
+            "\n"
+            "If the card path is omitted, Check looks for FILE.unforge.json beside the file.\n"
+            "Exit 0 = match. Exit 1 = refuse. Exit 2 = unreadable.\n"
+            "ok: true is the only pass for the file. A dead horizon is re-press, not a forged file.\n"
+            "Agents: python3 check.py --schema   or   from check import verifier"
+        ),
+    )
+    p.add_argument(
+        "paths",
+        nargs="*",
+        metavar="FILE",
+        help="file to prove, and/or its .unforge.json card",
+    )
+    p.add_argument("--quelle", default=None, help="carte .quelle.json à lire (ne signe pas)")
+    p.add_argument("--horizon", default=None, help="fiche .horizon.json à lire (ne signe pas)")
+    p.add_argument("--schema", action="store_true", help="print check.v0 JSON Schema and exit")
+    sortie = p.add_mutually_exclusive_group()
+    sortie.add_argument("--json", action="store_true", help="machine record on stdout (default)")
+    sortie.add_argument("--human", action="store_true", help="one VERT / ROUGE / AMBRE verdict")
+    p.add_argument("--quiet", "-q", action="store_true", help="no stderr hint")
+    args = p.parse_args(argv)
+
+    if args.schema:
+        try:
+            print(json.dumps(schema(), ensure_ascii=False, indent=2))
+        except Exception as e:
+            print(json.dumps({"ok": False, "erreur": str(e)}, ensure_ascii=False, indent=2))
+            return 2
+        return 0
+
+    if not args.paths:
+        p.error("drop a file, or a file and its .unforge.json")
+
+    chemins = [Path(x) for x in args.paths]
     try:
-        rec = check(preuve, fichier)
-        if args.quelle:
-            rec["quelle"] = lire_quelle(Path(args.quelle))
-        if args.horizon:
-            rec["horizon"] = lire_horizon(Path(args.horizon))
-    except Exception as e:
-        print(json.dumps({"ok": False, "erreur": str(e)}, ensure_ascii=False, indent=2))
+        preuve, fichier = resoudre(chemins)
+        if not preuve.is_file():
+            rec = habiller({"ok": False, "erreur": "preuve introuvable", "attendu": str(preuve)})
+            print(json.dumps(rec, ensure_ascii=False, indent=2))
+            return 2
+        if fichier is not None and not fichier.is_file():
+            rec = habiller({"ok": False, "erreur": "fichier introuvable", "attendu": str(fichier)})
+            print(json.dumps(rec, ensure_ascii=False, indent=2))
+            return 2
+        rec = verifier(
+            preuve,
+            fichier,
+            Path(args.quelle) if args.quelle else None,
+            Path(args.horizon) if args.horizon else None,
+        )
+    except FileNotFoundError:
+        attendu = str(voisin_carte(chemins[0])) if chemins else None
+        rec = habiller({"ok": False, "erreur": "preuve introuvable", "attendu": attendu})
+        print(json.dumps(rec, ensure_ascii=False, indent=2))
         return 2
-    print(json.dumps(rec, ensure_ascii=False, indent=2))
-    preuve_ok = rec.get("ok")
-    sat_ok = True
-    if "quelle" in rec:
-        sat_ok = sat_ok and rec["quelle"].get("ok") is not False
-    if "horizon" in rec:
-        sat_ok = sat_ok and rec["horizon"].get("ok") is not False
-    return 0 if preuve_ok and sat_ok else 1
+    except json.JSONDecodeError as e:
+        rec = habiller({"ok": False, "erreur": "json", "detail": str(e)})
+        print(json.dumps(rec, ensure_ascii=False, indent=2))
+        return 2
+    except Exception as e:
+        rec = habiller({"ok": False, "erreur": str(e)})
+        print(json.dumps(rec, ensure_ascii=False, indent=2))
+        return 2
+
+    if args.human:
+        imprimer_humain(rec, sys.stdout)
+    else:
+        print(json.dumps(rec, ensure_ascii=False, indent=2))
+        if not args.quiet and not args.json and sys.stderr.isatty():
+            imprimer_humain(rec, sys.stderr)
+
+    return code_sortie(rec)
 
 
 if __name__ == "__main__":

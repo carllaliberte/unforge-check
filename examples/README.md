@@ -1,6 +1,7 @@
 # Example
 
 ```bash
+python3 check.py examples/bienvenue.txt
 python3 check.py examples/bienvenue.txt examples/bienvenue.txt.unforge.json
 ```
 

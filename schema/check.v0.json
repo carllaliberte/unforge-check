@@ -1,0 +1,35 @@
+{
+  "$id": "https://github.com/carllaliberte/unforge-check/schema/check.v0.json",
+  "title": "unforge.check.v0",
+  "description": "Record returned by UNFORGE Check. Local process. No server. ok: true is the only pass for the file.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["ok", "geste"],
+  "properties": {
+    "ok": {
+      "type": "boolean",
+      "description": "File matches the card (empreinte, signature, and file SHA when a file was presented). A dead horizon does not flip this."
+    },
+    "geste": { "const": "check" },
+    "schema": { "const": "check.v0" },
+    "empreinte_ok": { "type": "boolean" },
+    "signature_ok": { "type": "boolean" },
+    "fichier_ok": {
+      "type": ["boolean", "null"],
+      "description": "null when no file was presented."
+    },
+    "sha256": { "type": ["string", "null"] },
+    "sha256_attendu": { "type": "string" },
+    "octets": { "type": "integer" },
+    "octets_attendus": { "type": "integer" },
+    "id": { "type": ["string", "null"] },
+    "card_id": { "type": ["string", "null"] },
+    "marque": { "const": "UNFORGE" },
+    "noeud": { "const": "non requis" },
+    "phrase": { "type": "string" },
+    "erreur": { "type": "string" },
+    "attendu": { "type": "string" },
+    "quelle": { "type": "object" },
+    "horizon": { "type": "object" }
+  }
+}

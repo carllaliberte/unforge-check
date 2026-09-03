@@ -2,7 +2,7 @@
 
 ## This repo
 
-Push to main → workflow `check` runs UNFORGE Check on `examples/bienvenue.txt`.
+Push to main → workflow `constat` runs UNFORGE Check on `examples/bienvenue.txt` (voisin `FILE.unforge.json` + Action `file`/`proof`).
 
 ## Any other repo
 
