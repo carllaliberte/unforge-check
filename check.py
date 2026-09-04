@@ -21,7 +21,8 @@ SUITES = ("ed25519", "UFHY1", "mldsa87")
 SCHEMA_ID = "check.v0"
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema" / "check.v0.json"
 
-# Quantum green / refuse red / horizon amber. No mysticism — just the flux.
+# VERT = match (file ↔ card). ROUGE = refuse. AMBRE = match with a dead satellite.
+# Public eye, not a seal.
 VERT = "\033[38;2;57;255;136m"
 ROUGE = "\033[38;2;255;77;79m"
 AMBRE = "\033[38;2;245;200;66m"
@@ -315,7 +316,7 @@ def imprimer_humain(rec: dict, dest) -> None:
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         prog="check.py",
-        description="UNFORGE Check — prove a file still matches the card that sealed it. No node. No cloud. No coin. Does not sign.",
+        description="UNFORGE Check — see whether a file matches the card. Public eye, not a seal. No node. No cloud. No coin. Does not sign.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "examples:\n"
@@ -333,14 +334,18 @@ def main(argv: list[str] | None = None) -> int:
         "paths",
         nargs="*",
         metavar="FILE",
-        help="file to prove, and/or its .unforge.json card",
+        help="file to check, and/or its .unforge.json card",
     )
     p.add_argument("--quelle", default=None, help="carte .quelle.json à lire (ne signe pas)")
     p.add_argument("--horizon", default=None, help="fiche .horizon.json à lire (ne signe pas)")
     p.add_argument("--schema", action="store_true", help="print check.v0 JSON Schema and exit")
     sortie = p.add_mutually_exclusive_group()
     sortie.add_argument("--json", action="store_true", help="machine record on stdout (default)")
-    sortie.add_argument("--human", action="store_true", help="one VERT / ROUGE / AMBRE verdict")
+    sortie.add_argument(
+        "--human",
+        action="store_true",
+        help="VERT = match (file ↔ card) · ROUGE = refuse · AMBRE = dead satellite",
+    )
     p.add_argument("--quiet", "-q", action="store_true", help="no stderr hint")
     args = p.parse_args(argv)
 
