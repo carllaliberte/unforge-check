@@ -87,6 +87,8 @@ def appliquer(fichier: Path, oubli: Path) -> dict:
             "phrase": "hash bougé. refus. le fichier reste.",
         }
     fichier.unlink()
+    paquet["applique"] = True
+    oubli.write_text(json.dumps(paquet, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return {
         "ok": True,
         "geste": "oubli-appliquer",
@@ -96,6 +98,7 @@ def appliquer(fichier: Path, oubli: Path) -> dict:
         "sha256": sha,
         "octets": octets,
         "unlinked": True,
+        "applique": True,
         "noeud": "non requis",
         "phrase": "sha256 tenu. unlink local. Git ne s'efface pas.",
     }

@@ -67,9 +67,31 @@ class Appliquer(unittest.TestCase):
             rec = appliquer(f, dest)
             self.assertTrue(rec["ok"])
             self.assertTrue(rec["unlinked"])
+            self.assertTrue(rec["applique"])
             self.assertEqual(rec["sha256"], sha_avant)
             self.assertFalse(f.exists())
             self.assertTrue(dest.is_file())
+            carte = json.loads(dest.read_text(encoding="utf-8"))
+            self.assertTrue(carte["applique"])
+            self.assertEqual(carte["format"], "UNFORGE-OUBLI-v1")
+            self.assertEqual(carte["sha256"], sha_avant)
+            self.assertEqual(lire(dest)["applique"], True)
+
+    def test_applique_flag_écrit_sur_disque(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            f = Path(tmp) / "fichier.txt"
+            dest = Path(tmp) / "oubli.json"
+            f.write_text("flag\n", encoding="utf-8")
+            dest.write_text(json.dumps(brouillon(f), ensure_ascii=False, indent=2), encoding="utf-8")
+            self.assertFalse(json.loads(dest.read_text(encoding="utf-8"))["applique"])
+            rec = appliquer(f, dest)
+            self.assertTrue(rec["ok"])
+            self.assertFalse(f.exists())
+            carte = json.loads(dest.read_text(encoding="utf-8"))
+            self.assertIs(carte["applique"], True)
+            self.assertEqual(carte["format"], "UNFORGE-OUBLI-v1")
+            self.assertNotIn("signature", carte)
+            self.assertNotIn("token_id", carte)
 
     def test_hash_bougé_refuse(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -84,6 +106,7 @@ class Appliquer(unittest.TestCase):
             self.assertFalse(rec["unlinked"])
             self.assertTrue(f.is_file())
             self.assertEqual(f.read_text(encoding="utf-8"), "déplacé\n")
+            self.assertFalse(json.loads(dest.read_text(encoding="utf-8"))["applique"])
 
     def test_mauvais_format_refuse(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -120,6 +143,10 @@ class CLI(unittest.TestCase):
             self.assertTrue(rec_ap["ok"])
             self.assertTrue(rec_ap["unlinked"])
             self.assertFalse(f.exists())
+            self.assertTrue(json.loads(dest.read_text(encoding="utf-8"))["applique"])
+            lu2 = _run(["lire", str(dest)])
+            self.assertEqual(lu2.returncode, 0, lu2.stderr)
+            self.assertTrue(json.loads(lu2.stdout)["applique"])
 
     def test_cli_hash_bougé_exit_1(self):
         with tempfile.TemporaryDirectory() as tmp:
