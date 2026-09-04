@@ -20,6 +20,7 @@ UNFORGE tools (this eye):
 | [unforge-press](https://github.com/carllaliberte/unforge-press) | imprimer |
 | [unforge-trail](https://github.com/carllaliberte/unforge-trail) | itinéraire |
 | [unforge-retract](https://github.com/carllaliberte/unforge-retract) | retirer sans effacer |
+| oubli (`oubli.py` ici) | oublier — unlink local après sha256 |
 
 `UFHY1` = Ed25519 + ML-DSA-65.
 `python3 check.py FILE` looks for `FILE.unforge.json`. Agents: `python3 check.py --schema` · INTEROP.md.

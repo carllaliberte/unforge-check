@@ -1,0 +1,12 @@
+{
+  "format": "UNFORGE-OUBLI-v1",
+  "marque": "UNFORGE",
+  "geste": "oubli",
+  "chemin": "fichier.txt",
+  "nom": "fichier.txt",
+  "octets": 23,
+  "sha256": "6dd439743c4e3bd25b616e9484d6a121e1380d8b0fd6811e9ec6b333e8d66465",
+  "applique": false,
+  "phrase": "Git ne s'efface pas. Oubli = unlink local après sha256.",
+  "note": "Specimen. Unforge ne signe pas. Pas de token d'oubli. Pas de photon. Pas un wipe cloud."
+}
