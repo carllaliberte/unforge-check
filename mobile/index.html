@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>UNFORGE Check — share sheet v0</title>
+<style>
+  body{font:16px/1.4 system-ui;background:#111;color:#eee;margin:2rem;max-width:40rem}
+  .VERT{color:#39ff88}.ROUGE{color:#ff4d4f}
+  input{display:block;margin:.6rem 0}
+</style>
+<h1>Check</h1>
+<p>Pick a file and its <code>.unforge.json</code>. Green = digest match. Not a seal. No account. No node.</p>
+<label>File <input id="f" type="file"></label>
+<label>Card <input id="c" type="file" accept=".json,application/json"></label>
+<p id="out">—</p>
+<script>
+async function sha256(buf){
+  const h = await crypto.subtle.digest('SHA-256', buf);
+  return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function run(){
+  const f = document.getElementById('f').files[0];
+  const c = document.getElementById('c').files[0];
+  const out = document.getElementById('out');
+  if(!f||!c){out.textContent='pick both';return}
+  let card;
+  try{card=JSON.parse(await c.text())}catch{out.innerHTML='<span class="ROUGE">ROUGE</span> unreadable card';return}
+  if(card.format!=='UNFORGE-PREUVE-v1'){out.innerHTML='<span class="ROUGE">ROUGE</span> not UNFORGE-PREUVE-v1';return}
+  const want=(card.objet||{}).sha256;
+  if(!want){out.innerHTML='<span class="ROUGE">ROUGE</span> card does not attest a file';return}
+  const got=await sha256(await f.arrayBuffer());
+  if(got===want) out.innerHTML='<span class="VERT">VERT</span> file matches the card. Signatures stay in check.py.';
+  else out.innerHTML='<span class="ROUGE">ROUGE</span> digest mismatch.';
+}
+document.getElementById('f').onchange=run;
+document.getElementById('c').onchange=run;
+</script>
