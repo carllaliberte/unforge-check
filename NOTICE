@@ -1,0 +1,12 @@
+UNFORGE
+Copyright 2026 Carl Laliberté
+
+UNFORGE is a trademark of Carl Laliberté.
+
+Apache License 2.0 grants software rights in this repository only.
+It does not grant any rights in the UNFORGE name, marks, or branding.
+It does not grant any rights in QUANTUM nodes, QUANTUM seals, or any private issuing node.
+
+This repository (unforge-check) is the public eye. The private QUANTUM node is not licensed here.
+
+Third-party: the PyPI dependency `cryptography` is separately licensed by its authors; see that project's LICENSE.

@@ -67,4 +67,4 @@ Public cadastre — same table on every rail.
 | [HORIZON](https://github.com/carllaliberte/horizon-protocol) | jusqu'à quand le sceau tient |
 
 Issuing stays on a private QUANTUM node. This repo is the public eye, not a seal.
-MIT (protocoles) · Apache-2.0 (this eye). Brand UNFORGE reserved.
+MIT (protocoles) · Apache-2.0 (this eye). QUANTUM is not licensed here. Brand UNFORGE reserved. See LICENSE, NOTICE, COPYRIGHT.md.
