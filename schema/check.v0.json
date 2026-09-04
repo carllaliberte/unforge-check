@@ -1,14 +1,14 @@
 {
   "$id": "https://github.com/carllaliberte/unforge-check/schema/check.v0.json",
   "title": "unforge.check.v0",
-  "description": "Record returned by UNFORGE Check. Local process. No server. ok: true is the only pass for the file.",
+  "description": "Record returned by UNFORGE Check. Local process. Public eye, not a seal. ok: true = match (file ↔ card); human word VERT. Not a QUANTUM seal.",
   "type": "object",
   "additionalProperties": true,
   "required": ["ok", "geste"],
   "properties": {
     "ok": {
       "type": "boolean",
-      "description": "File matches the card (empreinte, signature, and file SHA when a file was presented). A dead horizon does not flip this."
+      "description": "File matches the card (empreinte, signature, and file SHA when a file was presented). Human word: VERT. A dead horizon does not flip this."
     },
     "geste": { "const": "check" },
     "schema": { "const": "check.v0" },

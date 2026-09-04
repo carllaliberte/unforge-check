@@ -20,6 +20,7 @@ from check import (  # noqa: E402
     check_paquet,
     code_sortie,
     habiller,
+    ligne_verdict,
     lire_horizon,
     lire_quelle,
     phrase_check,
@@ -241,6 +242,80 @@ class CLI(unittest.TestCase):
         self.assertEqual(r.returncode, 2)
         rec = json.loads(r.stdout)
         self.assertEqual(rec["erreur"], "preuve introuvable")
+
+
+class WordingHold(unittest.TestCase):
+    """VERT = match. Public eye, not a seal. No quantum-green gloss."""
+
+    PUBLIC = (
+        ROOT / "README.md",
+        ROOT / "INTEROP.md",
+        ROOT / "schema" / "check.v0.json",
+        ROOT / "check.py",
+    )
+
+    def test_vert_est_match(self):
+        rec = check(CARTE, FICHIER)
+        self.assertTrue(rec["ok"])
+        ligne = ligne_verdict(rec, color=False)
+        self.assertTrue(ligne.startswith("VERT"))
+        self.assertIn("le fichier correspond à la carte.", ligne)
+        r = _run([str(FICHIER), "--human"], env={**os.environ, "NO_COLOR": "1"})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue(r.stdout.splitlines()[0].startswith("VERT"))
+        self.assertIn("le fichier correspond à la carte.", r.stdout)
+
+    def test_vert_match_dans_readme_interop_aide_schema(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("VERT means the file matches the card", readme)
+        self.assertIn("VERT = match (file ↔ card)", readme)
+        interop = (ROOT / "INTEROP.md").read_text(encoding="utf-8")
+        self.assertIn("VERT = the file matches the card", interop)
+        s = schema()
+        desc = s["description"] + " " + s["properties"]["ok"]["description"]
+        self.assertIn("match (file ↔ card)", desc)
+        self.assertIn("VERT", desc)
+        aide = _run(["--help"])
+        self.assertEqual(aide.returncode, 0, aide.stderr)
+        self.assertIn("VERT = match (file ↔ card)", aide.stdout)
+
+    def test_refuse_quantum_green_comme_gloss_vert(self):
+        for chemin in self.PUBLIC:
+            texte = chemin.read_text(encoding="utf-8")
+            self.assertNotRegex(
+                texte,
+                r"(?i)quantum\s+green",
+                f"{chemin.name} must not gloss VERT as quantum green",
+            )
+        aide = _run(["--help"])
+        self.assertNotRegex(aide.stdout, r"(?i)quantum\s+green")
+        self.assertNotRegex(aide.stderr, r"(?i)quantum\s+green")
+
+    def test_refuse_famille_quantique(self):
+        for chemin in self.PUBLIC:
+            texte = chemin.read_text(encoding="utf-8")
+            self.assertNotRegex(
+                texte,
+                r"(?i)famille\s+quantique",
+                f"{chemin.name} must not read FAMILLE as quantique",
+            )
+
+    def test_pas_imagine(self):
+        for chemin in self.PUBLIC:
+            self.assertNotIn("Imagine", chemin.read_text(encoding="utf-8"))
+        aide = _run(["--help"])
+        self.assertNotIn("Imagine", aide.stdout)
+        self.assertNotIn("Imagine", aide.stderr)
+
+    def test_pas_formally_verified(self):
+        for chemin in self.PUBLIC:
+            self.assertNotRegex(
+                chemin.read_text(encoding="utf-8"),
+                r"(?i)formally\s+verified",
+            )
+        aide = _run(["--help"])
+        self.assertNotRegex(aide.stdout, r"(?i)formally\s+verified")
+        self.assertNotRegex(aide.stderr, r"(?i)formally\s+verified")
 
 
 if __name__ == "__main__":

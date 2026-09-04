@@ -1,6 +1,6 @@
 # UNFORGE Check
 
-Drop a file. The card sits beside it. Green or red.
+Drop a file. The card sits beside it. VERT means the file matches the card.
 
 ```bash
 git clone https://github.com/carllaliberte/unforge-check
@@ -16,7 +16,7 @@ python3 check.py examples/bienvenue.txt examples/bienvenue.txt.unforge.json
 python3 check.py examples/bienvenue.txt --human
 ```
 
-`--human` prints `VERT` / `ROUGE` / `AMBRE`. Default is the machine record (`ok: true` is the only pass for the file). Exit 0 match · 1 refuse · 2 unreadable.
+`--human` prints `VERT` / `ROUGE` / `AMBRE`. VERT = match (file ↔ card). Not a QUANTUM seal. Default is the machine record (`ok: true` is the only pass for the file). Exit 0 match · 1 refuse · 2 unreadable.
 
 Agents and other tools — no server:
 
@@ -55,6 +55,8 @@ jobs:
 
 ## Famille
 
+Public cadastre — same table on every rail.
+
 | Rail | Question |
 |---|---|
 | [FIGURE](https://github.com/carllaliberte/figure-protocol) | qui |
@@ -64,5 +66,5 @@ jobs:
 | [TÉMOIN](https://github.com/carllaliberte/temoin-protocol) | avec quelle force |
 | [HORIZON](https://github.com/carllaliberte/horizon-protocol) | jusqu'à quand le sceau tient |
 
-Issuing stays on a private QUANTUM node. This repo is the public eye.
+Issuing stays on a private QUANTUM node. This repo is the public eye, not a seal.
 MIT (protocoles) · Apache-2.0 (this eye). Brand UNFORGE reserved.
