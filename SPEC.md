@@ -22,3 +22,4 @@ Roles:
 - Press does not open the signature; it prints ids.
 - Trail compares SHAs; it does not re-sign.
 - Retract uses other material: `RETRAIT|{id}|{card}|{empreinte}`, signed by the same card on QUANTUM.
+- Oubli is not a destination and is not signed. `UNFORGE-OUBLI-v1` records a local unlink after sha256. Hash moved → refuse. Git does not erase. Not a cloud wipe. No oubli token. Unforge does not sign.

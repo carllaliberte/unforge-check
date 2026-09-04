@@ -11,6 +11,8 @@ You are looking at the public eye, not the node.
 - Treat `ok: true` as the only success signal for the file
 - A dead horizon is `horizon.ok: false` — re-press, file is not forged
 - Keep proofs next to files; never invent a signature
+- Oubli: `python3 oubli.py brouillon FILE --vers oubli.json` · `appliquer FILE oubli.json` · `lire oubli.json`
+- Appliquer = sha256 then unlink. Hash moved → refuse (l'objet local reste). After unlink the local object is gone; the oubli card and Git history stay.
 
 ## Do not
 
@@ -21,12 +23,16 @@ You are looking at the public eye, not the node.
 - Merge a Dependabot PR if workflow `check` is red
 - Write `UFHY1` for anything other than Ed25519 + ML-DSA-65
 - Link mesure-protocol (repo does not exist)
+- Invent an oubli token or photon
+- Treat oubli as a cloud wipe — Git does not erase
+- Sign an oubli (Unforge does not sign)
 
 ## Formats
 
 - Proof: `UNFORGE-PREUVE-v1` — see SPEC.md
 - Trail: `UNFORGE-TRAIL-v1` — repo unforge-trail
 - Retract: `UNFORGE-RETRAIT-v1` — repo unforge-retract
+- Oubli: `UNFORGE-OUBLI-v1` — local unlink after sha256, see OUBLI.md
 - Press: HTML A5 — repo unforge-press
 
 ## Signed material (proof)
