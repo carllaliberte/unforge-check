@@ -13,6 +13,14 @@ from check import empreinte
 FORMAT = "UNFORGE-TRAIL-v1"
 
 
+def choisir_trail(chemins: list[Path]) -> Path:
+    """Pick the itinerary by suffix first. Do not match substring 'trail'."""
+    for c in chemins:
+        if c.name.endswith(".unforge-trail.json"):
+            return c
+    return chemins[0]
+
+
 def _prev(m: dict) -> str:
     return m.get("prev") or ""
 
@@ -71,7 +79,7 @@ def main() -> int:
     p.add_argument("paths", nargs="+")
     args = p.parse_args()
     chemins = [Path(x) for x in args.paths]
-    trail = next((c for c in chemins if "trail" in c.name or c.name.endswith(".unforge-trail.json")), chemins[0])
+    trail = choisir_trail(chemins)
     fichier = next((c for c in chemins if c != trail), None)
     try:
         rec = verifier(trail, fichier)
