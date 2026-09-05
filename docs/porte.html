@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>UNFORGE Check — porte</title>
+  <meta name="description" content="Dépose un fichier. Vois s'il correspond encore à sa carte. VERT / AMBRE / ROUGE."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet"/>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: #0a0a0a; color: #f2efe8; }
+    body { font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; line-height: 1.55; min-height: 100vh; }
+    .grain { pointer-events: none; position: fixed; inset: 0; opacity: .04; mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+    main { position: relative; max-width: 40rem; margin: 0 auto; padding: 12vh 1.5rem 4rem; }
+    .marque { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .68rem; letter-spacing: .28em; text-transform: uppercase; color: #c4a574; }
+    h1 { font-family: "Newsreader", "Iowan Old Style", Palatino, serif; font-weight: 500; font-size: clamp(1.8rem, 5vw, 2.6rem); line-height: 1.2; letter-spacing: -.02em; margin: 1.1rem 0 1.4rem; }
+    p { color: #9a9588; margin: 0 0 1rem; }
+    p strong { color: #f2efe8; font-weight: 500; }
+    .vert { color: #3dff88; } .ambre { color: #f5c842; } .rouge { color: #ff4d4f; }
+    pre { background: #121210; border: 1px solid color-mix(in srgb, #f2efe8 14%, transparent); border-radius: 12px; padding: 1rem 1.1rem; overflow-x: auto; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .82rem; color: #f2efe8; }
+    a { color: #c4a574; text-underline-offset: 3px; }
+    footer { margin-top: 3rem; font-size: .8rem; color: #6e6a60; }
+  </style>
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+  <main>
+    <p class="marque">UNFORGE · Check</p>
+    <h1>Dépose un fichier. Vois s’il correspond encore à sa carte. <span class="vert">VERT</span> / <span class="ambre">AMBRE</span> / <span class="rouge">ROUGE</span>.</h1>
+    <pre>python3 check.py examples/bienvenue.txt --human</pre>
+    <p><strong>VERT</strong> = le fichier correspond encore à sa carte. VERT means the file matches the card. Pas un sceau. Pas une quittance.</p>
+    <p>AMBRE = carte v1 (l’objet n’était pas dans le sceau). ROUGE = ça ne correspond plus.</p>
+    <p>Imprimer la carte A5 : <a href="https://github.com/carllaliberte/unforge-press">unforge-press</a> — <code>python3 press.py examples/bienvenue.txt.unforge.json</code></p>
+    <p>Action CI, pin <code>@v1.0.0</code>, jamais <code>@main</code>. Voir <a href="../ACTION.md">ACTION.md</a>.</p>
+    <footer>No node. No cloud. No coin. Does not sign.</footer>
+  </main>
+</body>
+</html>
