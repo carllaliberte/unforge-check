@@ -7,7 +7,7 @@ You are looking at the public eye, not the node.
 - Verify: `python check.py FILE` (looks for `FILE.unforge.json`) or `python check.py FILE FILE.unforge.json`
 - Optional read: `--quelle carte.quelle.json` `--horizon carte.horizon.json`
 - Interop (no server): `python check.py --schema` · `from check import verifier` · INTEROP.md
-- Or GitHub Action `carllaliberte/unforge-check@main` with `file` + `proof`
+- Or GitHub Action `carllaliberte/unforge-check@v1.0.0` with `file` + `proof` (pin a release; never `@main`)
 - Treat `ok: true` as the only success signal for the file
 - A dead horizon is `horizon.ok: false` — re-press, file is not forged
 - Keep proofs next to files; never invent a signature
@@ -26,10 +26,11 @@ You are looking at the public eye, not the node.
 - Invent an oubli token or photon
 - Treat oubli as a cloud wipe — Git does not erase
 - Sign an oubli (Unforge does not sign)
+- Follow `carllaliberte/unforge-check@main` in a workflow — pin `@v1.0.0` or a commit SHA
 
 ## Formats
 
-- Proof: `UNFORGE-PREUVE-v1` — see SPEC.md
+- Proof: `UNFORGE-PREUVE-v2` — see SPEC.md and FORMAT.md. v1 is read, never VERT.
 - Trail: `UNFORGE-TRAIL-v1` — repo unforge-trail
 - Retract: `UNFORGE-RETRAIT-v1` — repo unforge-retract
 - Oubli: `UNFORGE-OUBLI-v1` — local unlink after sha256, see OUBLI.md
@@ -41,8 +42,10 @@ You are looking at the public eye, not the node.
 {card_id}|{token_id}|REGISTRE|{empreinte}
 ```
 
-empreinte = SHA-256(fait|prev|token_id)
+v1 empreinte = SHA-256(fait|prev|token_id) — does **not** bind the file.
+v2 empreinte = SHA-256(fait|prev|token_id|objet.sha256|objet.octets)
 Signature: Ed25519 or `UFHY1:<ed>:<mldsa65>` (both must hold).
+Missing ML-DSA in `cryptography` is named: `ML-DSA non disponible dans cette installation`.
 
 ## Brand
 

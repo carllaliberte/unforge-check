@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Public-eye tests. Never issue. Never invent a valid signature."""
+"""Public-eye tests. Never issue. Never invent a valid QUANTUM signature.
+
+Local Ed25519 keys below are test fixtures, labelled DEMO, not Carl's node.
+"""
 from __future__ import annotations
 
 import json
@@ -10,28 +13,37 @@ import tempfile
 import unittest
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from check import (  # noqa: E402
+    FORMAT_V1,
+    FORMAT_V2,
+    MLDSA_MISSING,
     SCHEMA_ID,
     check,
     check_paquet,
     code_sortie,
+    empreinte,
     habiller,
     ligne_verdict,
     lire_horizon,
     lire_quelle,
+    materiau,
     phrase_check,
     resoudre,
     schema,
     verifier,
+    verify_ml,
+    verify_sig,
     voisin_carte,
 )
 
 FICHIER = ROOT / "examples" / "bienvenue.txt"
 CARTE = ROOT / "examples" / "bienvenue.txt.unforge.json"
+LEGACY = ROOT / "examples" / "legacy-v1.unforge.json"
 PY = sys.executable
 
 
@@ -49,6 +61,31 @@ def _paquet() -> dict:
     return json.loads(CARTE.read_text(encoding="utf-8"))
 
 
+def _b64e(raw: bytes) -> str:
+    import base64
+
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+
+def _signer():
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+
+    key = Ed25519PrivateKey.generate()
+    pub = _b64e(key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw))
+
+    def sign(paquet: dict, version: int = 2) -> dict:
+        paquet = dict(paquet)
+        paquet["format"] = FORMAT_V2 if version >= 2 else FORMAT_V1
+        paquet["card_public"] = pub
+        paquet["signature_algos"] = "ed25519"
+        paquet["empreinte"] = empreinte(paquet, version)
+        paquet["signature"] = _b64e(key.sign(materiau(paquet)))
+        return paquet
+
+    return sign
+
+
 class CheckFichier(unittest.TestCase):
     def test_couple_tient(self):
         rec = check(CARTE, FICHIER)
@@ -62,6 +99,8 @@ class CheckFichier(unittest.TestCase):
         self.assertEqual(rec["phrase"], "le fichier correspond à la carte.")
         self.assertEqual(rec["sha256"], rec["sha256_attendu"])
         self.assertEqual(rec["octets"], FICHIER.stat().st_size)
+        self.assertEqual(rec["format"], FORMAT_V2)
+        self.assertFalse(rec["legacy"])
 
     def test_carte_seule(self):
         rec = check(CARTE, None)
@@ -108,7 +147,7 @@ class CheckFichier(unittest.TestCase):
         rec = check_paquet({"format": "NON"}, None)
         self.assertFalse(rec["ok"])
         self.assertEqual(rec["erreur"], "format")
-        self.assertEqual(rec["phrase"], "pas UNFORGE-PREUVE-v1.")
+        self.assertEqual(rec["phrase"], "pas UNFORGE-PREUVE-v1 ou v2.")
 
     def test_carte_sans_objet(self):
         p = _paquet()
@@ -116,6 +155,151 @@ class CheckFichier(unittest.TestCase):
         rec = check_paquet(p, FICHIER)
         self.assertFalse(rec["ok"])
         self.assertEqual(rec["erreur"], "cette preuve ne constate pas un fichier")
+
+
+class ObjetBoundV2(unittest.TestCase):
+    """Regression: rewriting objet after signature must not VERT another file."""
+
+    def test_empreinte_v2_inclut_objet(self):
+        sign = _signer()
+        brut = FICHIER.read_bytes()
+        import hashlib
+
+        sha = hashlib.sha256(brut).hexdigest()
+        base = {
+            "fait": "attestation de test",
+            "prev": "",
+            "token_id": "QT-JK-TEST",
+            "card_id": "QT-EM-TEST",
+            "id": "QT-PR-TEST",
+            "objet": {"type": "fichier", "nom": "bienvenue.txt", "octets": len(brut), "sha256": sha},
+        }
+        signed = sign(base, 2)
+        rec = check_paquet(signed, FICHIER)
+        self.assertTrue(rec["ok"])
+        self.assertTrue(rec["empreinte_ok"])
+        other = hashlib.sha256(brut + b"x").hexdigest()
+        tampered = dict(signed)
+        tampered["objet"] = dict(signed["objet"])
+        tampered["objet"]["sha256"] = other
+        rec2 = check_paquet(tampered, FICHIER)
+        self.assertFalse(rec2["ok"])
+        self.assertFalse(rec2["empreinte_ok"])
+        self.assertIn("empreinte", rec2["phrase"])
+
+    def test_objet_swap_points_at_another_file_is_refused(self):
+        sign = _signer()
+        import hashlib
+
+        a = FICHIER.read_bytes()
+        with tempfile.TemporaryDirectory() as tmp:
+            b_path = Path(tmp) / "autre.txt"
+            b_path.write_bytes(b"pas le fichier scelle\n")
+            b = b_path.read_bytes()
+            paquet = sign(
+                {
+                    "fait": "fichier A",
+                    "prev": "",
+                    "token_id": "T-A",
+                    "card_id": "C-A",
+                    "id": "P-A",
+                    "objet": {
+                        "type": "fichier",
+                        "nom": "bienvenue.txt",
+                        "octets": len(a),
+                        "sha256": hashlib.sha256(a).hexdigest(),
+                    },
+                },
+                2,
+            )
+            rec_a = check_paquet(paquet, FICHIER)
+            self.assertTrue(rec_a["ok"], rec_a)
+            swapped = dict(paquet)
+            swapped["objet"] = {
+                "type": "fichier",
+                "nom": "autre.txt",
+                "octets": len(b),
+                "sha256": hashlib.sha256(b).hexdigest(),
+            }
+            rec_b = check_paquet(swapped, b_path)
+            self.assertFalse(rec_b["ok"])
+            self.assertFalse(rec_b["empreinte_ok"])
+            self.assertEqual(code_sortie(rec_b), 1)
+            self.assertTrue(rec_b["fichier_ok"], "naive file match would hold — the seal must not")
+
+    def test_v1_objet_swap_is_not_vert(self):
+        """v1 still cannot bind objet; dual check must not VERT a swapped card."""
+        p = json.loads(LEGACY.read_text(encoding="utf-8"))
+        rec_orig = check_paquet(p, FICHIER)
+        self.assertFalse(rec_orig["ok"])
+        self.assertTrue(rec_orig["legacy"])
+        self.assertTrue(rec_orig["empreinte_ok"])
+        self.assertTrue(rec_orig["signature_ok"])
+        self.assertEqual(rec_orig["erreur"], "format-v1")
+        self.assertEqual(code_sortie(rec_orig), 1)
+        self.assertTrue(ligne_verdict(rec_orig, color=False).startswith("AMBRE"))
+
+        import hashlib
+
+        with tempfile.TemporaryDirectory() as tmp:
+            autre = Path(tmp) / "autre.txt"
+            autre.write_bytes(b"fichier B pour l'attaque v1\n")
+            swapped = dict(p)
+            swapped["objet"] = dict(p["objet"])
+            swapped["objet"]["sha256"] = hashlib.sha256(autre.read_bytes()).hexdigest()
+            swapped["objet"]["octets"] = autre.stat().st_size
+            rec = check_paquet(swapped, autre)
+        self.assertTrue(rec["empreinte_ok"], "v1 formula still ignores objet")
+        self.assertTrue(rec["signature_ok"])
+        self.assertTrue(rec["fichier_ok"])
+        self.assertFalse(rec["ok"])
+        self.assertEqual(rec["erreur"], "format-v1")
+        self.assertFalse(ligne_verdict(rec, color=False).startswith("VERT"))
+
+
+class LegacyV1(unittest.TestCase):
+    def test_legacy_fixture_exists(self):
+        p = json.loads(LEGACY.read_text(encoding="utf-8"))
+        self.assertEqual(p["format"], FORMAT_V1)
+
+    def test_cli_legacy_exit_1(self):
+        r = _run([str(FICHIER), str(LEGACY)])
+        self.assertEqual(r.returncode, 1)
+        rec = json.loads(r.stdout)
+        self.assertFalse(rec["ok"])
+        self.assertEqual(rec["erreur"], "format-v1")
+        self.assertIn("resseller en v2", rec["phrase"])
+
+
+class MldsaDisponible(unittest.TestCase):
+    def test_import_error_is_named(self):
+        with patch.dict("sys.modules", {"cryptography.hazmat.primitives.asymmetric.mldsa": None}):
+            with self.assertRaises(ImportError) as ctx:
+                verify_ml("A", b"m", "A")
+        self.assertIn("ML-DSA non disponible", str(ctx.exception))
+
+    def test_check_paquet_names_missing_mldsa(self):
+        p = _paquet()
+        p["signature"] = "UFHY1:" + p["signature"] + ":AAAA"
+        p["card_public_pq"] = "AAAA"
+        with patch("check.verify_ml", side_effect=ImportError(MLDSA_MISSING)):
+            rec = check_paquet(p, None)
+        self.assertFalse(rec["ok"])
+        self.assertFalse(rec["signature_ok"])
+        self.assertEqual(rec["crypto"]["erreur"], MLDSA_MISSING)
+        self.assertEqual(rec["phrase"], MLDSA_MISSING)
+
+    def test_ufhy1_without_mldsa_is_not_silent_false(self):
+        p = _paquet()
+        p["signature"] = "UFHY1:AAAA:BBBB"
+        p["card_public_pq"] = "AAAA"
+        with patch("check.verify_ml", side_effect=ImportError(MLDSA_MISSING)):
+            ok, note = verify_sig(p, materiau(p))
+        self.assertFalse(ok)
+        self.assertEqual(note, MLDSA_MISSING)
+        rec = check_paquet({**p}, None)
+        # without the patch on check_paquet's import path, ML-DSA may exist;
+        # the named error is locked by verify_sig above.
 
 
 class Satellites(unittest.TestCase):
@@ -198,6 +382,7 @@ class CLI(unittest.TestCase):
         rec = json.loads(r.stdout)
         self.assertTrue(rec["ok"])
         self.assertEqual(rec["geste"], "check")
+        self.assertEqual(rec["format"], FORMAT_V2)
 
     def test_voisin_une_commande(self):
         r = _run([str(FICHIER)])

@@ -24,6 +24,9 @@ runs:
         python-version: ${{ inputs.python-version }}
     - name: Check
       shell: bash
+      env:
+        UNFORGE_FILE: ${{ inputs.file }}
+        UNFORGE_PROOF: ${{ inputs.proof }}
       run: |
         pip install -q -r "$GITHUB_ACTION_PATH/requirements.txt"
-        python "$GITHUB_ACTION_PATH/check.py" "${{ inputs.file }}" "${{ inputs.proof }}"
+        python "$GITHUB_ACTION_PATH/check.py" "$UNFORGE_FILE" "$UNFORGE_PROOF"

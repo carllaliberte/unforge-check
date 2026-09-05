@@ -18,6 +18,8 @@ python3 check.py examples/bienvenue.txt --human
 
 `--human` prints `VERT` / `ROUGE` / `AMBRE`. VERT = match (file ↔ card). Not a QUANTUM seal. Default is the machine record (`ok: true` is the only pass for the file). Exit 0 match · 1 refuse · 2 unreadable.
 
+Cards use `UNFORGE-PREUVE-v2`: the fingerprint includes `objet.sha256` and `objet.octets`, so rewriting the file after the press fails. `UNFORGE-PREUVE-v1` is still read (dual check) but never VERT — resseller en v2. See [FORMAT.md](FORMAT.md).
+
 Agents and other tools — no server:
 
 ```bash
@@ -33,9 +35,12 @@ python3 check.py FILE FILE.unforge.json --quelle carte.quelle.json --horizon car
 ```
 
 `UFHY1` = Ed25519 + ML-DSA-65. Both halves must hold.
+If this `cryptography` build has no ML-DSA, Check says so instead of failing closed in silence.
 A dead HORIZON does not make the file false. It says: re-press.
 
 CI — issuing stays private. This action only looks.
+
+Pin a release. Do not follow `@main`.
 
 In your repo, `.github/workflows/constat.yml`:
 
@@ -47,7 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: carllaliberte/unforge-check@main
+      - uses: carllaliberte/unforge-check@v1.0.0
         with:
           file: docs/contrat.pdf
           proof: docs/contrat.pdf.unforge.json

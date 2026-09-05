@@ -1,0 +1,25 @@
+{
+  "format": "UNFORGE-PREUVE-v1",
+  "marque": "UNFORGE",
+  "noeud": "DEMO",
+  "id": "QT-PR-DEMO0001",
+  "card_id": "QT-EM-DEMO0001",
+  "card_label": "demo",
+  "card_public": "N4ZSIvO33mSihHkZtXG4AzBxkE5sFzMs9l7Px9qgc68",
+  "signature_algos": "ed25519",
+  "token_id": "QT-JK-DEMO0001",
+  "empreinte": "985d3ff3389f8c64c87eeb829ccebf4ae09b943fd3500e442614b1e1731498e5",
+  "prev": "",
+  "signature": "vWH-mXxlL5nlFycrJ5F8Nd_pSDO6iHhQW7vnPUYauuN4xxADf1wXxROBDgUQUXAOehP5wI-ADx6okeoUwfC4DA",
+  "source": "os",
+  "created_at": "2026-08-31T13:37:29+00:00",
+  "fait": "fichier d'accueil UNFORGE\n{\"chemin\":\"examples/bienvenue.txt\",\"octets\":92,\"sha256\":\"e8fe730c49dc859358e3b94376fb0a5f0916aca21b18457eb3d8391c4ebc0838\"}",
+  "objet": {
+    "type": "fichier",
+    "nom": "bienvenue.txt",
+    "octets": 92,
+    "sha256": "e8fe730c49dc859358e3b94376fb0a5f0916aca21b18457eb3d8391c4ebc0838",
+    "chemin_origine": "examples/bienvenue.txt"
+  },
+  "note": "Demo Ed25519-only fixture for CI. Not Carl's node."
+}

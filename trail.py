@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""UNFORGE Trail — vérifier une chaîne de constats, hors coffre."""
+"""UNFORGE Trail — vérifier une chaîne de constats, hors coffre.
+
+empreinte() is imported from check.py. Each maillon uses the formula of
+its own format (v1 or v2). v2 binds objet.sha256|objet.octets.
+"""
 from __future__ import annotations
 import argparse, json, sys
 from pathlib import Path
@@ -79,4 +83,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())
