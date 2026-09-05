@@ -6,6 +6,8 @@ Push to main → workflow `constat` runs UNFORGE Check on `examples/bienvenue.tx
 
 ## Any other repo
 
+Pin a release. Do not follow `@main`.
+
 ```yaml
 # .github/workflows/constat.yml
 name: constat
@@ -15,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: carllaliberte/unforge-check@main
+      - uses: carllaliberte/unforge-check@v1.0.0
         with:
           file: docs/contrat.pdf
           proof: docs/contrat.pdf.unforge.json
@@ -26,7 +28,7 @@ Or call the reusable workflow:
 ```yaml
 jobs:
   verifier:
-    uses: carllaliberte/unforge-check/.github/workflows/unforge.yml@main
+    uses: carllaliberte/unforge-check/.github/workflows/unforge.yml@v1.0.0
     with:
       file: docs/contrat.pdf
       proof: docs/contrat.pdf.unforge.json

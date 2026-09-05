@@ -25,19 +25,22 @@ schema()                          # check.v0
 
 `check`, `check_paquet`, `lire_quelle`, `lire_horizon` stay importable.
 
+`UNFORGE-PREUVE-v2` is the seal that binds the file (`objet.sha256` + `objet.octets` in `empreinte`).
+`UNFORGE-PREUVE-v1` is dual-checked and never `ok: true`. See FORMAT.md.
+
 ## Exit
 
 | Code | Meaning |
 |---|---|
 | 0 | match (`ok: true`, satellites not false) |
-| 1 | refuse (format, fingerprint, signature, file, lying quelle, dead horizon) |
+| 1 | refuse (format, fingerprint, signature, file, lying quelle, dead horizon, v1 card) |
 | 2 | unreadable (missing path, bad JSON) |
 
 `ok: true` is the only success signal **for the file**. A dead horizon is `horizon.ok: false` — re-press. The file is not forged. Exit may still be 1 so CI asks for a new press.
 
 ## Record
 
-JSON on stdout. Shape: `schema/check.v0.json`. Stable keys: `ok`, `geste`, `empreinte_ok`, `signature_ok`, `fichier_ok`, `sha256`, `id`, `card_id`, `marque`, `noeud`, `phrase`. Extra keys may appear. `--human` prints VERT / ROUGE / AMBRE instead of JSON. VERT = the file matches the card. Public eye, not a seal.
+JSON on stdout. Shape: `schema/check.v0.json`. Stable keys: `ok`, `geste`, `empreinte_ok`, `signature_ok`, `fichier_ok`, `sha256`, `id`, `card_id`, `marque`, `noeud`, `phrase`. Extra keys may appear (`format`, `legacy`, `crypto`). `--human` prints VERT / ROUGE / AMBRE instead of JSON. VERT = the file matches the card. Public eye, not a seal.
 
 ## Do not
 

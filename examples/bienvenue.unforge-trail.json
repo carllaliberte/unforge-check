@@ -2,24 +2,24 @@
   "format": "UNFORGE-TRAIL-v1",
   "marque": "UNFORGE",
   "n": 1,
-  "feuille": "QT-PR-DEMO0001",
-  "note": "Demo trail. One genesis maillon. Not Carl's node.",
+  "feuille": "QT-PR-DEMO0002",
+  "note": "Demo trail. One genesis maillon. UNFORGE-PREUVE-v2. Not Carl's node.",
   "maillons": [
     {
-      "format": "UNFORGE-PREUVE-v1",
+      "format": "UNFORGE-PREUVE-v2",
       "marque": "UNFORGE",
       "noeud": "DEMO",
-      "id": "QT-PR-DEMO0001",
-      "card_id": "QT-EM-DEMO0001",
+      "id": "QT-PR-DEMO0002",
+      "card_id": "QT-EM-DEMO0002",
       "card_label": "demo",
-      "card_public": "N4ZSIvO33mSihHkZtXG4AzBxkE5sFzMs9l7Px9qgc68",
+      "card_public": "8kk7VuCRf1ED7F85yJDHbSOFLHNEu-IKXaOnhJKUNk8",
       "signature_algos": "ed25519",
-      "token_id": "QT-JK-DEMO0001",
-      "empreinte": "985d3ff3389f8c64c87eeb829ccebf4ae09b943fd3500e442614b1e1731498e5",
+      "token_id": "QT-JK-DEMO0002",
+      "empreinte": "5f8c7207c8b054bd73166695c1aefa9af4bfc61bb2b49d1077c7f1059a97f28c",
       "prev": "",
-      "signature": "vWH-mXxlL5nlFycrJ5F8Nd_pSDO6iHhQW7vnPUYauuN4xxADf1wXxROBDgUQUXAOehP5wI-ADx6okeoUwfC4DA",
+      "signature": "FsAshvsQE_KLGzuYNITavAXYUg1tAx3cAJ2cqlk4gI86NsuwO_UUsntDVfPNFBbWTYYw2urMWo9D_M2EIDiDDA",
       "source": "os",
-      "created_at": "2026-08-31T13:37:29+00:00",
+      "created_at": "2026-09-05T16:40:00+00:00",
       "fait": "fichier d'accueil UNFORGE\n{\"chemin\":\"examples/bienvenue.txt\",\"octets\":92,\"sha256\":\"e8fe730c49dc859358e3b94376fb0a5f0916aca21b18457eb3d8391c4ebc0838\"}",
       "objet": {
         "type": "fichier",
@@ -28,7 +28,7 @@
         "sha256": "e8fe730c49dc859358e3b94376fb0a5f0916aca21b18457eb3d8391c4ebc0838",
         "chemin_origine": "examples/bienvenue.txt"
       },
-      "note": "Demo Ed25519-only fixture for CI. Not Carl's node."
+      "note": "Demo Ed25519-only fixture for CI. UNFORGE-PREUVE-v2 binds objet.sha256|objet.octets. Not Carl's node."
     }
   ]
 }

@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: carllaliberte/unforge-check@main
+      - uses: carllaliberte/unforge-check@v1.0.0
         with:
           file: ${{ inputs.file }}
           proof: ${{ inputs.proof }}
