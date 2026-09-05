@@ -4,6 +4,11 @@ from __future__ import annotations
 import argparse, hashlib, json, sys
 from pathlib import Path
 
+try:
+    import fcntl
+except ImportError:
+    fcntl = None  # type: ignore
+
 FORMAT = "UNFORGE-OUBLI-v1"
 PHRASE = "Git ne s'efface pas. Oubli = unlink local après sha256."
 
@@ -11,6 +16,28 @@ PHRASE = "Git ne s'efface pas. Oubli = unlink local après sha256."
 def sha256_fichier(chemin: Path) -> tuple[str, int]:
     brut = chemin.read_bytes()
     return hashlib.sha256(brut).hexdigest(), len(brut)
+
+
+def _lock(path: Path):
+    lock_path = path.with_suffix(path.suffix + ".lock")
+    fh = open(lock_path, "a+", encoding="utf-8")
+    if fcntl is not None:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+    return fh
+
+
+def _unlock(fh) -> None:
+    if fcntl is not None:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+    fh.close()
+
+
+def sous_racine(cible: Path, racine: Path) -> bool:
+    try:
+        cible.resolve().relative_to(racine.resolve())
+        return True
+    except ValueError:
+        return False
 
 
 def brouillon(fichier: Path) -> dict:
@@ -56,7 +83,16 @@ def lire(oubli: Path) -> dict:
     }
 
 
-def appliquer(fichier: Path, oubli: Path) -> dict:
+def appliquer(fichier: Path, oubli: Path, hors_racine: bool = False) -> dict:
+    racine = Path.cwd()
+    if not hors_racine and not sous_racine(fichier, racine):
+        return {
+            "ok": False,
+            "geste": "oubli-appliquer",
+            "erreur": "hors racine",
+            "unlinked": False,
+            "phrase": "chemin hors du répertoire courant. refus. --hors-racine pour forcer.",
+        }
     paquet = json.loads(oubli.read_text(encoding="utf-8"))
     if paquet.get("format") != FORMAT:
         return {
@@ -73,22 +109,26 @@ def appliquer(fichier: Path, oubli: Path) -> dict:
             "erreur": "fichier introuvable",
             "phrase": "le fichier n'est plus là.",
         }
-    sha, octets = sha256_fichier(fichier)
-    attendu = paquet.get("sha256") or ""
-    if not attendu or sha != attendu:
-        return {
-            "ok": False,
-            "geste": "oubli-appliquer",
-            "erreur": "hash bougé",
-            "sha256": sha,
-            "sha256_attendu": attendu,
-            "unlinked": False,
-            "noeud": "non requis",
-            "phrase": "hash bougé. refus. le fichier reste.",
-        }
-    fichier.unlink()
-    paquet["applique"] = True
-    oubli.write_text(json.dumps(paquet, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    fh = _lock(fichier)
+    try:
+        sha, octets = sha256_fichier(fichier)
+        attendu = paquet.get("sha256") or ""
+        if not attendu or sha != attendu:
+            return {
+                "ok": False,
+                "geste": "oubli-appliquer",
+                "erreur": "hash bougé",
+                "sha256": sha,
+                "sha256_attendu": attendu,
+                "unlinked": False,
+                "noeud": "non requis",
+                "phrase": "hash bougé. refus. le fichier reste.",
+            }
+        fichier.unlink()
+        paquet["applique"] = True
+        oubli.write_text(json.dumps(paquet, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    finally:
+        _unlock(fh)
     return {
         "ok": True,
         "geste": "oubli-appliquer",
@@ -113,6 +153,7 @@ def main() -> int:
     pa = sub.add_parser("appliquer")
     pa.add_argument("fichier")
     pa.add_argument("oubli")
+    pa.add_argument("--hors-racine", action="store_true", help="autoriser un chemin hors du répertoire courant")
     pl = sub.add_parser("lire")
     pl.add_argument("oubli")
     args = p.parse_args()
@@ -127,7 +168,7 @@ def main() -> int:
             rec = lire(Path(args.oubli))
             print(json.dumps(rec, ensure_ascii=False, indent=2))
             return 0 if rec.get("ok") else 1
-        rec = appliquer(Path(args.fichier), Path(args.oubli))
+        rec = appliquer(Path(args.fichier), Path(args.oubli), hors_racine=args.hors_racine)
         print(json.dumps(rec, ensure_ascii=False, indent=2))
         return 0 if rec.get("ok") else 1
     except FileNotFoundError as e:
