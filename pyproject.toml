@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "unforge-check"
+version = "1.0.0"
+description = "Prove a file still matches the card that sealed it. Public eye, not a seal."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+dependencies = ["cryptography>=48.0.0"]
+
+[project.scripts]
+unforge-check = "check:main"
+
+[tool.setuptools]
+py-modules = ["check"]

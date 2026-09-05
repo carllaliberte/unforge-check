@@ -4,6 +4,7 @@ You are looking at the public eye, not the node.
 
 ## Do
 
+- Door (60s): `python3 check.py examples/bienvenue.txt --human` — VERT = file ↔ card. Page: docs/porte.html
 - Verify: `python check.py FILE` (looks for `FILE.unforge.json`) or `python check.py FILE FILE.unforge.json`
 - Optional read: `--quelle carte.quelle.json` `--horizon carte.horizon.json`
 - Interop (no server): `python check.py --schema` · `from check import verifier` · INTEROP.md
@@ -27,6 +28,7 @@ You are looking at the public eye, not the node.
 - Treat oubli as a cloud wipe — Git does not erase
 - Sign an oubli (Unforge does not sign)
 - Follow `carllaliberte/unforge-check@main` in a workflow — pin `@v1.0.0` or a commit SHA
+- Put `consulter` MESURE, `PRÉSENT`, or `quantum.db` in the public door (README / docs/porte.html)
 
 ## Formats
 

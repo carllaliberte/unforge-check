@@ -502,6 +502,29 @@ class WordingHold(unittest.TestCase):
         self.assertNotRegex(aide.stdout, r"(?i)formally\s+verified")
         self.assertNotRegex(aide.stderr, r"(?i)formally\s+verified")
 
+    def test_porte_60s_et_badge(self):
+        porte = (ROOT / "docs" / "porte.html").read_text(encoding="utf-8")
+        self.assertIn("python3 check.py examples/bienvenue.txt --human", porte)
+        self.assertIn("VERT", porte)
+        self.assertIn("unforge-press", porte)
+        self.assertIn("@v1.0.0", porte)
+        self.assertIn("jamais", porte)
+        self.assertNotIn("unforge-check@main", porte)
+        self.assertNotIn("quantum.db", porte)
+        self.assertNotIn("PRÉSENT", porte)
+        self.assertNotIn("consulter", porte.lower())
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("python3 check.py examples/bienvenue.txt --human", readme)
+        self.assertIn("carllaliberte/unforge-check@v1.0.0", readme)
+        self.assertNotIn("unforge-check@main", readme)
+        self.assertNotIn("quantum.db", readme)
+        self.assertNotIn("PRÉSENT", readme)
+        action = (ROOT / "ACTION.md").read_text(encoding="utf-8")
+        self.assertIn("carllaliberte/unforge-check@v1.0.0", action)
+        self.assertIn("badge.svg", action)
+        self.assertNotIn("unforge-check@main", action)
+
+
 
 if __name__ == "__main__":
     unittest.main()
