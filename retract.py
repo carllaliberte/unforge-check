@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""UNFORGE Retract — brouillon public, signature sur QUANTUM, vérif hors coffre."""
+"""UNFORGE Retract — brouillon public. Vérif hors coffre. Ne signe pas."""
 from __future__ import annotations
 import argparse, json, sys
 from pathlib import Path
 
-from check import verify_sig, FORMAT as FORMAT_PREUVE
+from check import FORMAT_V1, FORMAT_V2, verify_sig
 
 FORMAT = "UNFORGE-RETRAIT-v1"
+PREUVES = {FORMAT_V1, FORMAT_V2}
 
 
 def materiau_retrait(paquet: dict) -> str:
@@ -15,7 +16,7 @@ def materiau_retrait(paquet: dict) -> str:
 
 def brouillon(preuve: Path) -> dict:
     p = json.loads(preuve.read_text(encoding="utf-8"))
-    if p.get("format") != FORMAT_PREUVE:
+    if p.get("format") not in PREUVES:
         raise ValueError("format preuve refusé")
     rec = {
         "format": FORMAT,
@@ -29,7 +30,7 @@ def brouillon(preuve: Path) -> dict:
         "empreinte": p.get("empreinte"),
         "materiau": materiau_retrait(p),
         "signature": None,
-        "phrase": "Autre matière. Même carte. Signé sur QUANTUM.",
+        "phrase": "Autre matière. Même carte. Ne signe pas ici.",
     }
     return rec
 
@@ -37,7 +38,7 @@ def brouillon(preuve: Path) -> dict:
 def verifier(preuve: Path, retrait: Path) -> dict:
     p = json.loads(preuve.read_text(encoding="utf-8"))
     r = json.loads(retrait.read_text(encoding="utf-8"))
-    if p.get("format") != FORMAT_PREUVE:
+    if p.get("format") not in PREUVES:
         return {"ok": False, "erreur": "format preuve"}
     if r.get("format") != FORMAT:
         return {"ok": False, "erreur": "format retrait"}
@@ -50,10 +51,16 @@ def verifier(preuve: Path, retrait: Path) -> dict:
     )
     attendu = materiau_retrait(p)
     mat_ok = (r.get("materiau") or "") == attendu
-    fake = {"card_public": r.get("card_public"), "card_public_pq": r.get("card_public_pq") or p.get("card_public_pq"), "signature": r.get("signature") or ""}
-    sig_ok = bool(r.get("signature")) and verify_sig(fake, attendu.encode())
+    sig_raw = r.get("signature") or ""
+    fake = {
+        "card_public": r.get("card_public"),
+        "card_public_pq": r.get("card_public_pq") or p.get("card_public_pq"),
+        "signature": sig_raw,
+    }
+    ok_sig, note = verify_sig(fake, attendu.encode())
+    sig_ok = bool(sig_raw) and bool(ok_sig)
     ok = bool(memes and mat_ok and sig_ok)
-    return {
+    rec = {
         "ok": ok,
         "geste": "retrait-verifier",
         "preuve_id": p.get("id"),
@@ -64,6 +71,11 @@ def verifier(preuve: Path, retrait: Path) -> dict:
         "noeud": "non requis",
         "phrase": "Retrait valable." if ok else "Retrait refusé.",
     }
+    if not sig_raw:
+        rec["erreur"] = "signature absente"
+    if note:
+        rec["note"] = note
+    return rec
 
 
 def main() -> int:

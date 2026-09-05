@@ -8,6 +8,7 @@ You are looking at the public eye, not the node.
 - Optional read: `--quelle carte.quelle.json` `--horizon carte.horizon.json`
 - Interop (no server): `python check.py --schema` · `from check import verifier` · INTEROP.md
 - Or GitHub Action `carllaliberte/unforge-check@v1.0.0` with `file` + `proof` (pin a release; never `@main`)
+- Mesure: https://github.com/carllaliberte/mesure-protocol
 - Treat `ok: true` as the only success signal for the file
 - A dead horizon is `horizon.ok: false` — re-press, file is not forged
 - Keep proofs next to files; never invent a signature
@@ -22,7 +23,6 @@ You are looking at the public eye, not the node.
 - Put a QUANTUM node on the public internet or in an app store
 - Merge a Dependabot PR if workflow `check` is red
 - Write `UFHY1` for anything other than Ed25519 + ML-DSA-65
-- Link mesure-protocol (repo does not exist)
 - Invent an oubli token or photon
 - Treat oubli as a cloud wipe — Git does not erase
 - Sign an oubli (Unforge does not sign)
