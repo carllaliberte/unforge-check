@@ -7,7 +7,7 @@ from pathlib import Path
 try:
     import fcntl
 except ImportError:
-    fcntl = None  # type: ignore
+    fcntl = None  # type: ignore  # Windows: no flock. Documented, not a silent seal.
 
 FORMAT = "UNFORGE-OUBLI-v1"
 PHRASE = "Git ne s'efface pas. Oubli = unlink local après sha256."
@@ -30,6 +30,14 @@ def _unlock(fh) -> None:
     if fcntl is not None:
         fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
     fh.close()
+
+
+def _ecrire_json(chemin: Path, objet: dict) -> None:
+    fh = _lock(chemin)
+    try:
+        chemin.write_text(json.dumps(objet, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    finally:
+        _unlock(fh)
 
 
 def sous_racine(cible: Path, racine: Path) -> bool:
@@ -93,6 +101,14 @@ def appliquer(fichier: Path, oubli: Path, hors_racine: bool = False) -> dict:
             "unlinked": False,
             "phrase": "chemin hors du répertoire courant. refus. --hors-racine pour forcer.",
         }
+    if not hors_racine and not sous_racine(oubli, racine):
+        return {
+            "ok": False,
+            "geste": "oubli-appliquer",
+            "erreur": "hors racine",
+            "unlinked": False,
+            "phrase": "carte oubli hors du répertoire courant. refus. --hors-racine pour forcer.",
+        }
     paquet = json.loads(oubli.read_text(encoding="utf-8"))
     if paquet.get("format") != FORMAT:
         return {
@@ -126,7 +142,7 @@ def appliquer(fichier: Path, oubli: Path, hors_racine: bool = False) -> dict:
             }
         fichier.unlink()
         paquet["applique"] = True
-        oubli.write_text(json.dumps(paquet, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        _ecrire_json(oubli, paquet)
     finally:
         _unlock(fh)
     return {
@@ -161,7 +177,7 @@ def main() -> int:
         if args.cmd == "brouillon":
             rec = brouillon(Path(args.fichier))
             dest = Path(args.vers)
-            dest.write_text(json.dumps(rec, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            _ecrire_json(dest, rec)
             print(json.dumps(rec, ensure_ascii=False, indent=2))
             return 0
         if args.cmd == "lire":
