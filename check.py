@@ -2,8 +2,9 @@
 """UNFORGE Check — verify a .unforge.json against an optional file.
 Optional: read a QUELLE card and an HORIZON card. Does not sign.
 
-UNFORGE-PREUVE-v2 binds objet.sha256 and objet.octets into empreinte.
-v1 cards are read (dual check) but never VERT — objet was not in the seal.
+UNFORGE-PREUVE-v2 binds objet.sha256 and objet.octets into empreinte
+and, jalon 2, into materiau() as well. v1 cards are read (dual check)
+but never VERT — objet was not in the seal.
 """
 from __future__ import annotations
 
@@ -66,8 +67,26 @@ def objet_lien(paquet: dict) -> str:
     return f"{sha}|{octets_canon(objet.get('octets'))}"
 
 
+def _materiau_registre(paquet: dict) -> str:
+    return f"{paquet.get('card_id') or ''}|{paquet.get('token_id') or ''}|REGISTRE|{paquet.get('empreinte') or ''}"
+
+
+def materiau_legacy(paquet: dict) -> bytes:
+    """v2 cards pressed before jalon 2: no trailing objet_lien."""
+    return _materiau_registre(paquet).encode()
+
+
 def materiau(paquet: dict) -> bytes:
-    return f"{paquet.get('card_id') or ''}|{paquet.get('token_id') or ''}|REGISTRE|{paquet.get('empreinte') or ''}".encode()
+    """Signed bytes for REGISTRE.
+
+    v2+: card_id|token_id|REGISTRE|{empreinte}|{objet_lien}
+    v1 / materiau_legacy: card_id|token_id|REGISTRE|{empreinte}
+    """
+    corps = _materiau_registre(paquet)
+    ver = format_version(paquet)
+    if ver is None or ver >= 2:
+        corps = f"{corps}|{objet_lien(paquet)}"
+    return corps.encode()
 
 
 def empreinte(paquet: dict, version: int | None = None) -> str:
@@ -107,6 +126,7 @@ def verify_ml(pub, message, sig) -> bool:
 
 
 def verify_sig(paquet, message) -> tuple[bool, str | None]:
+    """Ed25519 and ML-DSA-65 (UFHY1) always receive the same `message`."""
     sig = paquet.get("signature") or ""
     ed_pub = paquet.get("card_public") or ""
     if not sig.startswith(HY):
@@ -122,6 +142,24 @@ def verify_sig(paquet, message) -> tuple[bool, str | None]:
     except ImportError as e:
         return False, str(e)
     return bool(ed_ok and ml_ok), None
+
+
+def verifier_signature(paquet: dict) -> tuple[bool, str | None, bool]:
+    """Verify REGISTRE. Canonical materiau first, then materiau_legacy.
+
+    Each attempt is one verify_sig call (UFHY1 halves see identical bytes).
+    A crypto install error is not retried. Returns
+    (ok, crypto_note, used_legacy_materiau).
+    """
+    sig_ok, sig_note = verify_sig(paquet, materiau(paquet))
+    if sig_ok or sig_note:
+        return sig_ok, sig_note, False
+    ver = format_version(paquet)
+    if ver is not None and ver >= 2:
+        sig_ok, sig_note = verify_sig(paquet, materiau_legacy(paquet))
+        if sig_ok:
+            return True, None, True
+    return sig_ok, sig_note, False
 
 
 def lire_quelle(chemin: Path) -> dict:
@@ -236,7 +274,7 @@ def check_paquet(paquet: dict, fichier: Path | None) -> dict:
     if version is None:
         return habiller({"ok": False, "erreur": "format"})
     emp_ok = empreinte(paquet, version) == paquet.get("empreinte")
-    sig_ok, sig_note = verify_sig(paquet, materiau(paquet))
+    sig_ok, sig_note, mat_legacy = verifier_signature(paquet)
     fichier_ok = None
     sha = None
     sha_attendu = None
@@ -296,6 +334,7 @@ def check_paquet(paquet: dict, fichier: Path | None) -> dict:
             "format": FORMAT_V2,
             "format_version": 2,
             "legacy": False,
+            "materiau_legacy": mat_legacy,
         }
     if sha_attendu is not None:
         rec["sha256_attendu"] = sha_attendu

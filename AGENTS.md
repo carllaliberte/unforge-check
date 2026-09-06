@@ -43,11 +43,12 @@ You are looking at the public eye, not the node.
 ## Signed material (proof)
 
 ```
-{card_id}|{token_id}|REGISTRE|{empreinte}
+{card_id}|{token_id}|REGISTRE|{empreinte}|{objet.sha256}|{objet.octets}
 ```
 
 v1 empreinte = SHA-256(fait|prev|token_id) — does **not** bind the file.
 v2 empreinte = SHA-256(fait|prev|token_id|objet.sha256|objet.octets)
+v2+ materiau includes the same `objet.sha256|objet.octets` (jalon 2). Cards signed without the trailing lien still verify (`materiau_legacy`).
 Signature: Ed25519 or `UFHY1:<ed>:<mldsa65>` (both must hold).
 Missing ML-DSA in `cryptography` is named: `ML-DSA non disponible dans cette installation`.
 

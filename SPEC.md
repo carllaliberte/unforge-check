@@ -10,7 +10,7 @@ Signed material (UTF-8):
 
     {card_id}|{token_id}|{destination}|{corps}
 
-Destinations: `QUANTUM` (note, corps = body), `REGISTRE` (constat, corps = empreinte), `RETRAIT` (retrait, corps = empreinte).
+Destinations: `QUANTUM` (note, corps = body), `REGISTRE` (constat, corps = `empreinte|objet.sha256|objet.octets` for v2+; the shorter `empreinte` corps is still accepted as `materiau_legacy`), `RETRAIT` (retrait, corps = empreinte).
 
 Fingerprint:
 
