@@ -1,35 +1,138 @@
 <!DOCTYPE html>
+<html lang="en">
 <meta charset="utf-8">
-<title>UNFORGE Check — share sheet v0</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UNFORGE Check — share sheet</title>
 <style>
   body{font:16px/1.4 system-ui;background:#111;color:#eee;margin:2rem;max-width:40rem}
   .VERT{color:#39ff88}.ROUGE{color:#ff4d4f}
   input{display:block;margin:.6rem 0}
+  button{font:inherit;background:#222;color:#eee;border:1px solid #555;padding:.7rem 1.1rem;min-height:2.75rem}
+  button + button{margin-left:.4rem}
+  #share-box{margin-top:1.2rem}
+  #share-fallback{margin-top:.8rem}
+  #share-text,#share-url{display:block;width:100%;box-sizing:border-box;margin:.4rem 0;padding:.5rem;background:#1a1a1a;color:#eee;border:1px solid #444;font:inherit}
+  #share-text{min-height:5rem;resize:vertical}
+  #share-status{min-height:1.4em}
+  [hidden]{display:none!important}
 </style>
 <h1>Check</h1>
-<p>Pick a file and its <code>.unforge.json</code>. Green = digest match. Not a seal. No account. No node.</p>
+<p>Pick a file and its <code>.unforge.json</code>. Green = digest match. Not a seal. Unforge does not sign. No account. No node.</p>
 <label>File <input id="f" type="file"></label>
 <label>Card <input id="c" type="file" accept=".json,application/json"></label>
 <p id="out">—</p>
+<div id="share-box" hidden>
+  <button type="button" id="share-btn">Share</button>
+  <div id="share-fallback" hidden>
+    <p>Sharing is not available here. Copy the result. If this page is on http(s), copy the link too.</p>
+    <label>Result <textarea id="share-text" readonly></textarea></label>
+    <label>Link <input id="share-url" readonly placeholder="No web link (local file)"></label>
+    <button type="button" id="copy-btn">Copy</button>
+    <button type="button" id="copy-link-btn">Copy link</button>
+  </div>
+  <p id="share-status" role="status" aria-live="polite"></p>
+</div>
 <script>
 async function sha256(buf){
   const h = await crypto.subtle.digest('SHA-256', buf);
   return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('');
 }
+// --- share helpers
+function sharePageUrl(href){
+  if(typeof href!=='string') return '';
+  return /^(https?:)/i.test(href) ? href : '';
+}
+function buildShareData(verdictText, href, files){
+  const data={title:'UNFORGE Check',text:verdictText||''};
+  const url=sharePageUrl(href);
+  if(url) data.url=url;
+  if(files&&files.length) data.files=files;
+  return data;
+}
+function shareClipboardText(data){
+  return [data.title,data.text,data.url].filter(Boolean).join('\n');
+}
+function preferWebShare(nav, data){
+  if(!nav||typeof nav.share!=='function') return false;
+  if(typeof nav.canShare==='function'){
+    try{return !!nav.canShare(data)}catch{return false}
+  }
+  return true;
+}
+// --- /share helpers
+let lastPlain='';
+function setOut(html, plain){
+  document.getElementById('out').innerHTML=html;
+  lastPlain=plain||'';
+  document.getElementById('share-box').hidden=!lastPlain;
+  document.getElementById('share-fallback').hidden=true;
+  document.getElementById('share-status').textContent='';
+}
+function currentFiles(){
+  const f=document.getElementById('f').files[0];
+  const c=document.getElementById('c').files[0];
+  return (f&&c)?[f,c]:[];
+}
+function showFallback(data){
+  const fb=document.getElementById('share-fallback');
+  document.getElementById('share-text').value=shareClipboardText(data);
+  document.getElementById('share-url').value=data.url||'';
+  fb.hidden=false;
+}
+async function copyText(text, okMsg, emptyMsg){
+  const status=document.getElementById('share-status');
+  if(!text){status.textContent=emptyMsg;return}
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(text);
+      status.textContent=okMsg;
+      return;
+    }
+  }catch{/* fall through */}
+  const ta=document.getElementById('share-text');
+  ta.focus();ta.select();
+  status.textContent='Select the text and copy.';
+}
+async function openShareSheet(){
+  const status=document.getElementById('share-status');
+  if(!lastPlain){status.textContent='Check a file first.';return}
+  const files=currentFiles();
+  const data=buildShareData(lastPlain, location.href);
+  const withFiles=files.length?buildShareData(lastPlain, location.href, files):null;
+  const payload=(withFiles&&preferWebShare(navigator, withFiles))?withFiles:data;
+  if(preferWebShare(navigator, payload)){
+    try{
+      await navigator.share(payload);
+      document.getElementById('share-fallback').hidden=true;
+      status.textContent='';
+      return;
+    }catch(err){
+      if(err&&err.name==='AbortError'){status.textContent='';return}
+    }
+  }
+  showFallback(data);
+}
 async function run(){
-  const f = document.getElementById('f').files[0];
-  const c = document.getElementById('c').files[0];
-  const out = document.getElementById('out');
-  if(!f||!c){out.textContent='pick both';return}
+  const f=document.getElementById('f').files[0];
+  const c=document.getElementById('c').files[0];
+  if(!f||!c){setOut('pick both','');return}
   let card;
-  try{card=JSON.parse(await c.text())}catch{out.innerHTML='<span class="ROUGE">ROUGE</span> unreadable card';return}
-  if(card.format!=='UNFORGE-PREUVE-v1'){out.innerHTML='<span class="ROUGE">ROUGE</span> not UNFORGE-PREUVE-v1';return}
+  try{card=JSON.parse(await c.text())}catch{setOut('<span class="ROUGE">ROUGE</span> unreadable card','ROUGE unreadable card');return}
+  if(card.format!=='UNFORGE-PREUVE-v1'){setOut('<span class="ROUGE">ROUGE</span> not UNFORGE-PREUVE-v1','ROUGE not UNFORGE-PREUVE-v1');return}
   const want=(card.objet||{}).sha256;
-  if(!want){out.innerHTML='<span class="ROUGE">ROUGE</span> card does not attest a file';return}
+  if(!want){setOut('<span class="ROUGE">ROUGE</span> card does not attest a file','ROUGE card does not attest a file');return}
   const got=await sha256(await f.arrayBuffer());
-  if(got===want) out.innerHTML='<span class="VERT">VERT</span> file matches the card. Signatures stay in check.py.';
-  else out.innerHTML='<span class="ROUGE">ROUGE</span> digest mismatch.';
+  if(got===want) setOut('<span class="VERT">VERT</span> file matches the card. Signatures stay in check.py.','VERT file matches the card. Signatures stay in check.py.');
+  else setOut('<span class="ROUGE">ROUGE</span> digest mismatch.','ROUGE digest mismatch.');
 }
 document.getElementById('f').onchange=run;
 document.getElementById('c').onchange=run;
+document.getElementById('share-btn').onclick=openShareSheet;
+document.getElementById('copy-btn').onclick=function(){
+  copyText(document.getElementById('share-text').value,'Copied.','Nothing to copy.');
+};
+document.getElementById('copy-link-btn').onclick=function(){
+  copyText(document.getElementById('share-url').value,'Link copied.','No web link on this page (opened as a local file).');
+};
 </script>
+</html>
