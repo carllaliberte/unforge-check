@@ -3,7 +3,9 @@
 Ship nothing to a store until `check.py` is boring.
 
 1. Same verifier, same JSON, same green/red.
-2. Share sheet: pick a file + a `.unforge.json`.
+2. Share sheet: pick a file + a `.unforge.json`. After VERT/ROUGE, Share
+   opens the system sheet (`navigator.share`) when present; otherwise copy
+   the result (and the http(s) page URL). No invented host.
 3. No account. Proofs stay on device.
 4. Issuing a new proof is not in v1. Issuing is QUANTUM, local, later.
 
