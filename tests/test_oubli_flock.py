@@ -29,7 +29,7 @@ class FlockAppliquer(unittest.TestCase):
                 dest = Path(tmp) / "oubli.json"
                 f.write_text("lock\n", encoding="utf-8")
                 dest.write_text(json.dumps(brouillon(f), ensure_ascii=False, indent=2), encoding="utf-8")
-                rec = appliquer(f, dest)
+                rec = appliquer(f, dest, hors_racine=True)
                 self.assertTrue(rec["ok"])
                 self.assertTrue(rec["unlinked"])
             calls = [c.args[1] for c in mock.flock.call_args_list]
