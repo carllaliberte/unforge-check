@@ -1,0 +1,13 @@
+{
+  "format": "kem.v0",
+  "kem_id": "KM-optin-v0",
+  "suite": "x25519mlkem768",
+  "opt_in": true,
+  "menace": "harvest-now-decrypt-later",
+  "hypothese": "AND aujourd'hui (X25519 et ML-KEM-768) ; OR plus tard contre harvest-now-decrypt-later",
+  "ciphertext": null,
+  "pose_at": "2026-09-06T13:00:00Z",
+  "revocable": true,
+  "cible": "unforge",
+  "note": "v0. déclare. n'encapsule pas. pas par défaut."
+}

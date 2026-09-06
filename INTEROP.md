@@ -45,3 +45,4 @@ JSON on stdout. Shape: `schema/check.v0.json`. Stable keys: `ok`, `geste`, `empr
 ## Do not
 
 Stand up a server. Open `quantum.db`. Invent a signature. Call this a coin.
+Default a KEM. Fuse `kem.v0` into `juge.v0` / `flux.v0`. Call UFHY1 a KEM.

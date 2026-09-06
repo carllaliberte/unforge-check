@@ -24,6 +24,7 @@ You are looking at the public eye, not the node.
 - Put a QUANTUM node on the public internet or in an app store
 - Merge a Dependabot PR if workflow `check` is red
 - Write `UFHY1` for anything other than Ed25519 + ML-DSA-65
+- Wire `kem.v0` into `check.py` or turn a KEM suite on by default
 - Invent an oubli token or photon
 - Treat oubli as a cloud wipe — Git does not erase
 - Sign an oubli (Unforge does not sign)
@@ -37,6 +38,7 @@ You are looking at the public eye, not the node.
 - Retract: `UNFORGE-RETRAIT-v1` — repo unforge-retract
 - Oubli: `UNFORGE-OUBLI-v1` — local unlink after sha256, see OUBLI.md
 - Press: HTML A5 — repo unforge-press
+- KEM: `kem.v0` — opt-in declaration only, see KEM.md. Not a signature.
 
 ## Signed material (proof)
 

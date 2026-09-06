@@ -71,6 +71,8 @@ python3 check.py FILE FILE.unforge.json --quelle carte.quelle.json --horizon car
 If this `cryptography` build has no ML-DSA, Check says so instead of failing closed in silence.
 A dead HORIZON does not make the file false. It says: re-press.
 
+Opt-in KEM (never default, not Check): [KEM.md](KEM.md). `python3 kem.py ecrire --opt-in --suite x25519mlkem768`. Not UFHY1. Not wired into `check.py`.
+
 CI — issuing stays private. This action only looks. See [ACTION.md](ACTION.md).
 
 ## Famille
