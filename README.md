@@ -18,9 +18,11 @@ python3 press.py examples/bienvenue.txt.unforge.json
 
 Door: [docs/porte.html](docs/porte.html)
 
-[![UNFORGE Check](https://github.com/carllaliberte/unforge-check/actions/workflows/constat.yml/badge.svg)](https://github.com/carllaliberte/unforge-check/actions/workflows/constat.yml)
+[![UNFORGE Check](https://github.com/carllaliberte/unforge-check/actions/workflows/constat.yml/badge.svg?branch=main)](https://github.com/carllaliberte/unforge-check/actions/workflows/constat.yml)
 
-Copy-paste the badge. Pin the Action `@v1.0.0` — never `@main`.
+Green/red is the last `constat` run on main (file match). Digest only. Does not sign. Not a receipt.
+
+Copy-paste the badge. Pin the Action `@v1.0.0` — never `@main`. The Action writes VERT / ROUGE to the job summary.
 
 ```markdown
 [![UNFORGE Check](https://github.com/YOUR/REPO/actions/workflows/constat.yml/badge.svg)](https://github.com/YOUR/REPO/actions/workflows/constat.yml)

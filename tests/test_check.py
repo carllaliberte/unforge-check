@@ -32,8 +32,10 @@ from check import (  # noqa: E402
     lire_horizon,
     lire_quelle,
     materiau,
+    mot_verdict,
     phrase_check,
     resoudre,
+    resume_markdown,
     schema,
     verifier,
     verify_ml,
@@ -398,6 +400,37 @@ class CLI(unittest.TestCase):
         self.assertIn("le fichier correspond à la carte.", r.stdout)
         self.assertNotIn("{", r.stdout)
 
+    def test_summary_vert(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp) / "summary.md"
+            env = {**os.environ, "NO_COLOR": "1", "GITHUB_STEP_SUMMARY": str(dest)}
+            r = _run([str(FICHIER), "--summary"], env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        rec = json.loads(r.stdout)
+        self.assertTrue(rec["ok"])
+        text = dest.read_text(encoding="utf-8")
+        self.assertIn("## VERT — file matches the card", text)
+        self.assertIn("Does not sign", text)
+        self.assertIn("Not a receipt", text)
+        self.assertIn("Digest/match only", text)
+        self.assertNotIn("ε=0", text)
+        self.assertNotIn("epsilon=0", text.lower())
+        self.assertNotIn("signé", text.lower())
+
+    def test_summary_rouge(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            copie = Path(tmp) / "x.txt"
+            copie.write_text("pas le fichier scellé\n", encoding="utf-8")
+            dest = Path(tmp) / "summary.md"
+            env = {**os.environ, "NO_COLOR": "1", "GITHUB_STEP_SUMMARY": str(dest)}
+            r = _run([str(copie), str(CARTE), "--summary"], env=env)
+            text = dest.read_text(encoding="utf-8")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("## ROUGE — refuse", text)
+        self.assertIn("Does not sign", text)
+        self.assertIn("Not a receipt", text)
+        self.assertNotIn("ε=0", text)
+
     def test_schema_flag(self):
         r = _run(["--schema"])
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -522,7 +555,62 @@ class WordingHold(unittest.TestCase):
         action = (ROOT / "ACTION.md").read_text(encoding="utf-8")
         self.assertIn("carllaliberte/unforge-check@v1.0.0", action)
         self.assertIn("badge.svg", action)
+        self.assertIn("Does not sign", action)
+        self.assertIn("Not a receipt", action)
+        self.assertIn("Preview ≠ receipt", action)
         self.assertNotIn("unforge-check@main", action)
+        self.assertNotIn("ε=0", action)
+        self.assertNotIn("epsilon=0", action.lower())
+
+
+class CiBadge(unittest.TestCase):
+    """CI badge / job summary: digest/match only. Does not sign."""
+
+    def test_mot_verdict_couple(self):
+        rec = check(CARTE, FICHIER)
+        self.assertEqual(mot_verdict(rec), "VERT")
+        md = resume_markdown(rec)
+        self.assertIn("## VERT — file matches the card", md)
+        self.assertIn("Does not sign", md)
+        self.assertIn("Not a receipt", md)
+        self.assertNotIn("ε=0", md)
+        self.assertNotIn("receipt of", md.lower())
+
+    def test_mot_verdict_refuse(self):
+        rec = habiller({"ok": False, "erreur": "json"})
+        self.assertEqual(mot_verdict(rec), "ROUGE")
+        self.assertIn("## ROUGE — refuse", resume_markdown(rec))
+
+    def test_mot_verdict_legacy_ambre(self):
+        rec = check(LEGACY, FICHIER)
+        self.assertEqual(mot_verdict(rec), "AMBRE")
+        self.assertFalse(rec["ok"])
+        self.assertIn("re-press", resume_markdown(rec))
+
+    def test_action_writes_summary_and_does_not_sign(self):
+        action = (ROOT / "action.yml").read_text(encoding="utf-8")
+        self.assertIn("--summary", action)
+        self.assertIn("Does not sign", action)
+        self.assertNotRegex(action, r"(?i)openssl\s+dgst")
+        self.assertNotIn("quantum.db", action)
+        self.assertNotIn("ε=0", action)
+
+    def test_constat_has_check_job(self):
+        yml = (ROOT / ".github" / "workflows" / "constat.yml").read_text(encoding="utf-8")
+        self.assertIn("name: Check", yml)
+        self.assertIn("--human --summary", yml)
+        self.assertIn("uses: ./", yml)
+        self.assertNotIn("quantum.db", yml)
+        self.assertNotRegex(yml, r"(?i)sign\s+the")
+        self.assertNotIn("ε=0", yml)
+
+    def test_readme_badge_is_match_not_receipt(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("badge.svg?branch=main", readme)
+        self.assertIn("Does not sign", readme)
+        self.assertIn("Not a receipt", readme)
+        self.assertIn("job summary", readme)
+        self.assertNotIn("ε=0", readme)
 
 
 

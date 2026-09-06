@@ -370,7 +370,8 @@ def _colorer() -> bool:
     return sys.stderr.isatty() or sys.stdout.isatty()
 
 
-def ligne_verdict(rec: dict, color: bool) -> str:
+def mot_verdict(rec: dict) -> str:
+    """VERT | AMBRE | ROUGE — digest/match only. Never a receipt. Does not sign."""
     fichier_tient = rec.get("ok") is True
     sat = satellites_ok(rec)
     legacy_lu = (
@@ -380,11 +381,58 @@ def ligne_verdict(rec: dict, color: bool) -> str:
         and rec.get("fichier_ok") is not False
     )
     if fichier_tient and sat:
-        mot, teinte = "VERT", VERT
-    elif (fichier_tient and not sat) or legacy_lu:
-        mot, teinte = "AMBRE", AMBRE
-    else:
-        mot, teinte = "ROUGE", ROUGE
+        return "VERT"
+    if (fichier_tient and not sat) or legacy_lu:
+        return "AMBRE"
+    return "ROUGE"
+
+
+RESUME_TITRE = {
+    "VERT": "file matches the card",
+    "AMBRE": "re-press — not a forged file",
+    "ROUGE": "refuse",
+}
+
+
+def resume_markdown(rec: dict) -> str:
+    """CI job summary. English labels. VERT/ROUGE are the human words. Does not sign."""
+    mot = mot_verdict(rec)
+    lignes = [
+        f"## {mot} — {RESUME_TITRE[mot]}",
+        "",
+        "Digest/match only. Does not sign. Not a receipt.",
+        "",
+    ]
+    phrase = rec.get("phrase")
+    if phrase:
+        lignes.append(str(phrase))
+        lignes.append("")
+    if rec.get("sha256"):
+        lignes.append(f"- sha256 `{rec['sha256']}`")
+    if rec.get("format"):
+        lignes.append(f"- format `{rec['format']}`")
+    lignes.append("")
+    return "\n".join(lignes)
+
+
+def ecrire_resume(rec: dict, dest: Path | None = None) -> None:
+    texte = resume_markdown(rec)
+    if dest is None:
+        env = os.environ.get("GITHUB_STEP_SUMMARY")
+        dest = Path(env) if env else None
+    if dest is not None:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        with dest.open("a", encoding="utf-8") as f:
+            f.write(texte)
+            if not texte.endswith("\n"):
+                f.write("\n")
+        return
+    sys.stderr.write(texte if texte.endswith("\n") else texte + "\n")
+
+
+def ligne_verdict(rec: dict, color: bool) -> str:
+    mot = mot_verdict(rec)
+    teinte = {"VERT": VERT, "AMBRE": AMBRE, "ROUGE": ROUGE}[mot]
     if color:
         mot = f"{teinte}{mot}{RESET}"
     return f"{mot}  {rec.get('phrase')}"
@@ -448,6 +496,11 @@ def main(argv: list[str] | None = None) -> int:
         help="VERT = match (file ↔ card) · ROUGE = refuse · AMBRE = dead satellite or v1",
     )
     p.add_argument("--quiet", "-q", action="store_true", help="no stderr hint")
+    p.add_argument(
+        "--summary",
+        action="store_true",
+        help="write VERT/ROUGE job summary ($GITHUB_STEP_SUMMARY or stderr). Digest/match only. Does not sign.",
+    )
     args = p.parse_args(argv)
 
     if args.schema:
@@ -462,35 +515,32 @@ def main(argv: list[str] | None = None) -> int:
         p.error("drop a file, or a file and its .unforge.json")
 
     chemins = [Path(x) for x in args.paths]
+    illisible = None
     try:
         preuve, fichier = resoudre(chemins)
         if not preuve.is_file():
             rec = habiller({"ok": False, "erreur": "preuve introuvable", "attendu": str(preuve)})
-            print(json.dumps(rec, ensure_ascii=False, indent=2))
-            return 2
-        if fichier is not None and not fichier.is_file():
+            illisible = 2
+        elif fichier is not None and not fichier.is_file():
             rec = habiller({"ok": False, "erreur": "fichier introuvable", "attendu": str(fichier)})
-            print(json.dumps(rec, ensure_ascii=False, indent=2))
-            return 2
-        rec = verifier(
-            preuve,
-            fichier,
-            Path(args.quelle) if args.quelle else None,
-            Path(args.horizon) if args.horizon else None,
-        )
+            illisible = 2
+        else:
+            rec = verifier(
+                preuve,
+                fichier,
+                Path(args.quelle) if args.quelle else None,
+                Path(args.horizon) if args.horizon else None,
+            )
     except FileNotFoundError:
         attendu = str(voisin_carte(chemins[0])) if chemins else None
         rec = habiller({"ok": False, "erreur": "preuve introuvable", "attendu": attendu})
-        print(json.dumps(rec, ensure_ascii=False, indent=2))
-        return 2
+        illisible = 2
     except json.JSONDecodeError as e:
         rec = habiller({"ok": False, "erreur": "json", "detail": str(e)})
-        print(json.dumps(rec, ensure_ascii=False, indent=2))
-        return 2
+        illisible = 2
     except Exception as e:
         rec = habiller({"ok": False, "erreur": str(e)})
-        print(json.dumps(rec, ensure_ascii=False, indent=2))
-        return 2
+        illisible = 2
 
     if args.human:
         imprimer_humain(rec, sys.stdout)
@@ -499,7 +549,10 @@ def main(argv: list[str] | None = None) -> int:
         if not args.quiet and not args.json and sys.stderr.isatty():
             imprimer_humain(rec, sys.stderr)
 
-    return code_sortie(rec)
+    if args.summary:
+        ecrire_resume(rec)
+
+    return illisible if illisible is not None else code_sortie(rec)
 
 
 if __name__ == "__main__":
