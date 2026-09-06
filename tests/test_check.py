@@ -405,10 +405,10 @@ class CLI(unittest.TestCase):
             dest = Path(tmp) / "summary.md"
             env = {**os.environ, "NO_COLOR": "1", "GITHUB_STEP_SUMMARY": str(dest)}
             r = _run([str(FICHIER), "--summary"], env=env)
+            text = dest.read_text(encoding="utf-8")
         self.assertEqual(r.returncode, 0, r.stderr)
         rec = json.loads(r.stdout)
         self.assertTrue(rec["ok"])
-        text = dest.read_text(encoding="utf-8")
         self.assertIn("## VERT — file matches the card", text)
         self.assertIn("Does not sign", text)
         self.assertIn("Not a receipt", text)
