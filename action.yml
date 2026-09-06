@@ -1,5 +1,5 @@
 name: UNFORGE Check
-description: Verify a file against its .unforge.json. No node. No keys.
+description: Verify a file against its .unforge.json. Writes VERT/ROUGE to the job summary. Digest/match only. Does not sign.
 author: Carl Laliberté
 branding:
   icon: shield
@@ -22,11 +22,11 @@ runs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ inputs.python-version }}
-    - name: Check
+    - name: File match
       shell: bash
       env:
         UNFORGE_FILE: ${{ inputs.file }}
         UNFORGE_PROOF: ${{ inputs.proof }}
       run: |
         pip install -q -r "$GITHUB_ACTION_PATH/requirements.txt"
-        python "$GITHUB_ACTION_PATH/check.py" "$UNFORGE_FILE" "$UNFORGE_PROOF"
+        python "$GITHUB_ACTION_PATH/check.py" "$UNFORGE_FILE" "$UNFORGE_PROOF" --summary

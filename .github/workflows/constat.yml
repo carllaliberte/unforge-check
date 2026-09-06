@@ -13,7 +13,26 @@ permissions:
   contents: read
 
 jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: connect
+        uses: actions/checkout@v4
+
+      - name: file match
+        run: |
+          pip install -q -r requirements.txt
+          python3 check.py examples/bienvenue.txt --human --summary
+
+      - name: examples
+        uses: ./
+        with:
+          file: examples/bienvenue.txt
+          proof: examples/bienvenue.txt.unforge.json
+
   contrat:
+    name: Contract
     runs-on: ubuntu-latest
     steps:
       - name: connect
@@ -28,17 +47,10 @@ jobs:
           pip install -q -r requirements.txt
           python3 -m unittest discover -s tests -v
           python3 check.py --schema | python3 -c "import json,sys; json.load(sys.stdin)"
-          python3 check.py examples/bienvenue.txt
-
-      - name: examples
-        uses: ./
-        with:
-          file: examples/bienvenue.txt
-          proof: examples/bienvenue.txt.unforge.json
 
       - name: workflows
         run: |
           test -f action.yml
           test -f examples/constat.yml
           test -f .github/workflows/constat.yml
-          python3 -c "import pathlib; assert 'concurrency' in pathlib.Path('.github/workflows/constat.yml').read_text()"
+          python3 -c "import pathlib; t=pathlib.Path('.github/workflows/constat.yml').read_text(); assert 'concurrency' in t; assert 'name: Check' in t; assert '--summary' in t"

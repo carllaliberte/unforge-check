@@ -40,7 +40,7 @@ schema()                          # check.v0
 
 ## Record
 
-JSON on stdout. Shape: `schema/check.v0.json`. Stable keys: `ok`, `geste`, `empreinte_ok`, `signature_ok`, `fichier_ok`, `sha256`, `id`, `card_id`, `marque`, `noeud`, `phrase`. Extra keys may appear (`format`, `legacy`, `crypto`). `--human` prints VERT / ROUGE / AMBRE instead of JSON. VERT = the file matches the card. Public eye, not a seal.
+JSON on stdout. Shape: `schema/check.v0.json`. Stable keys: `ok`, `geste`, `empreinte_ok`, `signature_ok`, `fichier_ok`, `sha256`, `id`, `card_id`, `marque`, `noeud`, `phrase`. Extra keys may appear (`format`, `legacy`, `crypto`). `--human` prints VERT / ROUGE / AMBRE instead of JSON. VERT = the file matches the card. Public eye, not a seal. `--summary` appends the same words as a CI job summary (`$GITHUB_STEP_SUMMARY`). Digest/match only. Does not sign. Not a receipt.
 
 ## Do not
 

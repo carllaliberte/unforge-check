@@ -2,7 +2,7 @@
 
 ## This repo
 
-Push to main → workflow `constat` runs UNFORGE Check on `examples/bienvenue.txt` (voisin `FILE.unforge.json` + Action `file`/`proof`).
+Push to main → workflow `constat` runs UNFORGE Check on `examples/bienvenue.txt` (voisin `FILE.unforge.json` + Action `file`/`proof`). Job **Check** is the file match (VERT/ROUGE in the job summary). Digest only. Does not sign. Not a receipt.
 
 ## Any other repo
 

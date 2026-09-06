@@ -1,3 +1,4 @@
+# Digest/match only. Does not sign. Not a receipt.
 name: constat
 on: [push, pull_request]
 jobs:
