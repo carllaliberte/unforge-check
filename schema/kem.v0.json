@@ -1,0 +1,43 @@
+{
+  "$id": "https://github.com/carllaliberte/unforge-check/schema/kem.v0.json",
+  "title": "unforge.kem.v0",
+  "description": "Opt-in ML-KEM envelope. Not a signature. Not juge.v0. Not flux.v0. Not Check. ciphertext is null in v0 — this rail declares, it does not encapsulate. opt_in must be true; missing or false is refuse (never default).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "kem_id",
+    "suite",
+    "opt_in",
+    "menace",
+    "hypothese",
+    "ciphertext",
+    "pose_at",
+    "revocable"
+  ],
+  "properties": {
+    "format": { "const": "kem.v0" },
+    "kem_id": { "type": "string" },
+    "suite": {
+      "enum": ["x25519", "mlkem768", "x25519mlkem768"],
+      "description": "Not UFHY1. UFHY1 is Ed25519 + ML-DSA-65 (signatures only)."
+    },
+    "opt_in": {
+      "const": true,
+      "description": "Must be true. Absent or false = refuse. Never default."
+    },
+    "menace": {
+      "const": "harvest-now-decrypt-later",
+      "description": "Threat model, not a product name."
+    },
+    "hypothese": { "type": "string" },
+    "ciphertext": {
+      "type": "null",
+      "description": "v0 declares. Encapsulation is later, off this repo."
+    },
+    "pose_at": { "type": "string" },
+    "revocable": { "const": true },
+    "cible": { "type": ["string", "null"] },
+    "note": { "type": "string" }
+  }
+}
