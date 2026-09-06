@@ -13,6 +13,11 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+try:
+    import fcntl
+except ImportError:
+    fcntl = None  # type: ignore  # Windows: no flock. Documented, not a silent seal.
+
 FORMAT = "kem.v0"
 SUITES = ("x25519", "mlkem768", "x25519mlkem768")
 SIGNATURE_SUITES = ("UFHY1", "ed25519", "mldsa87")
@@ -29,6 +34,28 @@ SLOGANS = (
     "pqc par défaut",
     "pqc par defaut",
 )
+
+
+def _lock(path: Path):
+    lock_path = path.with_suffix(path.suffix + ".lock")
+    fh = open(lock_path, "a+", encoding="utf-8")
+    if fcntl is not None:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+    return fh
+
+
+def _unlock(fh) -> None:
+    if fcntl is not None:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+    fh.close()
+
+
+def _ecrire_json(chemin: Path, objet: dict) -> None:
+    fh = _lock(chemin)
+    try:
+        chemin.write_text(json.dumps(objet, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    finally:
+        _unlock(fh)
 
 
 def _now() -> str:
@@ -153,10 +180,7 @@ def main(argv=None) -> int:
     args = p.parse_args(argv)
     if args.cmd == "ecrire":
         carte = ecrire(suite=args.suite, opt_in=bool(args.opt_in), cible=args.cible)
-        Path(args.vers).write_text(
-            json.dumps(carte, ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
-        )
+        _ecrire_json(Path(args.vers), carte)
         out = dict(carte)
         out["fichier"] = args.vers
         print(json.dumps(out, ensure_ascii=False, indent=2))

@@ -46,3 +46,5 @@ JSON on stdout. Shape: `schema/check.v0.json`. Stable keys: `ok`, `geste`, `empr
 
 Stand up a server. Open `quantum.db`. Invent a signature. Call this a coin.
 Default a KEM. Fuse `kem.v0` into `juge.v0` / `flux.v0`. Call UFHY1 a KEM.
+
+`kem.py ecrire` uses `fcntl.flock` (LOCK_EX) on the output write (jalon 1).
