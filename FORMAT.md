@@ -23,13 +23,13 @@ UTF-8, no extra spaces. Genesis `prev` is empty.
 
 `objet.octets` is the canonical decimal integer (`92`, not `92.0`). Missing sha or octets → empty field, still hashed.
 
-Signed material is unchanged:
+Signed material (jalon 2):
 
 ```
-{card_id}|{token_id}|REGISTRE|{empreinte}
+{card_id}|{token_id}|REGISTRE|{empreinte}|{objet.sha256}|{objet.octets}
 ```
 
-Because `empreinte` now covers `objet`, the signature covers the file.
+`empreinte` already covers `objet`. Jalon 2 also puts `objet_lien` in the signed bytes so both UFHY1 halves seal the same string, including the file link. Cards pressed before jalon 2 used `{card_id}|{token_id}|REGISTRE|{empreinte}` only; Check still accepts that string and sets `materiau_legacy: true`.
 
 ## Dual check (transition)
 

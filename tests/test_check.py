@@ -32,12 +32,15 @@ from check import (  # noqa: E402
     lire_horizon,
     lire_quelle,
     materiau,
+    materiau_legacy,
     mot_verdict,
+    objet_lien,
     phrase_check,
     resoudre,
     resume_markdown,
     schema,
     verifier,
+    verifier_signature,
     verify_ml,
     verify_sig,
     voisin_carte,
@@ -69,7 +72,7 @@ def _b64e(raw: bytes) -> str:
     return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
 
 
-def _signer():
+def _signer(*, legacy_materiau: bool = False):
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
     from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
@@ -82,7 +85,8 @@ def _signer():
         paquet["card_public"] = pub
         paquet["signature_algos"] = "ed25519"
         paquet["empreinte"] = empreinte(paquet, version)
-        paquet["signature"] = _b64e(key.sign(materiau(paquet)))
+        msg = materiau_legacy(paquet) if legacy_materiau else materiau(paquet)
+        paquet["signature"] = _b64e(key.sign(msg))
         return paquet
 
     return sign
@@ -257,6 +261,156 @@ class ObjetBoundV2(unittest.TestCase):
         self.assertFalse(rec["ok"])
         self.assertEqual(rec["erreur"], "format-v1")
         self.assertFalse(ligne_verdict(rec, color=False).startswith("VERT"))
+
+
+class HybrideMateriauJalon2(unittest.TestCase):
+    """Ed and ML-DSA-65 sign the same bytes; objet_lien is in materiau()."""
+
+    def test_materiau_v2_contient_objet_sha256_et_octets(self):
+        p = _paquet()
+        lien = objet_lien(p)
+        mat = materiau(p).decode()
+        self.assertIn(p["objet"]["sha256"], mat)
+        self.assertIn(str(p["objet"]["octets"]), mat)
+        self.assertEqual(lien, f"{p['objet']['sha256']}|{p['objet']['octets']}")
+        self.assertEqual(
+            mat,
+            f"{p['card_id']}|{p['token_id']}|REGISTRE|{p['empreinte']}|{lien}",
+        )
+        self.assertNotEqual(materiau(p), materiau_legacy(p))
+        self.assertEqual(
+            materiau_legacy(p).decode(),
+            f"{p['card_id']}|{p['token_id']}|REGISTRE|{p['empreinte']}",
+        )
+
+    def test_ufhy1_meme_message_aux_deux_verifieurs(self):
+        p = _paquet()
+        p["signature"] = "UFHY1:edSIG:mlSIG"
+        p["card_public_pq"] = "pqPUB"
+        recu = []
+
+        def _ed(pub, message, sig):
+            recu.append(("ed", message, sig))
+            return True
+
+        def _ml(pub, message, sig):
+            recu.append(("ml", message, sig))
+            return True
+
+        msg = b"octets-canoniques-identiques"
+        with patch("check.verify_ed", side_effect=_ed), patch("check.verify_ml", side_effect=_ml):
+            ok, note = verify_sig(p, msg)
+        self.assertTrue(ok)
+        self.assertIsNone(note)
+        self.assertEqual(len(recu), 2)
+        self.assertEqual(recu[0][0], "ed")
+        self.assertEqual(recu[1][0], "ml")
+        self.assertEqual(recu[0][1], recu[1][1])
+        self.assertEqual(recu[0][1], msg)
+        self.assertEqual(recu[1][1], msg)
+
+    def test_ufhy1_fallback_ne_divise_pas_les_messages(self):
+        p = _paquet()
+        p["signature"] = "UFHY1:AAAA:BBBB"
+        p["card_public_pq"] = "CCCC"
+        appels = []
+
+        def _ed(pub, message, sig):
+            appels.append(("ed", message))
+            return False
+
+        def _ml(pub, message, sig):
+            appels.append(("ml", message))
+            return False
+
+        with patch("check.verify_ed", side_effect=_ed), patch("check.verify_ml", side_effect=_ml):
+            ok, note, used_legacy = verifier_signature(p)
+        self.assertFalse(ok)
+        self.assertIsNone(note)
+        self.assertFalse(used_legacy)
+        self.assertEqual(len(appels), 4)
+        self.assertEqual(appels[0][1], appels[1][1])
+        self.assertEqual(appels[2][1], appels[3][1])
+        self.assertEqual(appels[0][1], materiau(p))
+        self.assertEqual(appels[2][1], materiau_legacy(p))
+        self.assertNotEqual(appels[0][1], appels[2][1])
+
+    def test_fixture_v2_legacy_materiau_vert(self):
+        rec = check(CARTE, FICHIER)
+        self.assertTrue(rec["ok"])
+        self.assertTrue(rec["signature_ok"])
+        self.assertTrue(rec["materiau_legacy"])
+        self.assertEqual(mot_verdict(rec), "VERT")
+
+    def test_signature_legacy_synthetique_tient(self):
+        sign = _signer(legacy_materiau=True)
+        brut = FICHIER.read_bytes()
+        import hashlib
+
+        signed = sign(
+            {
+                "fait": "attestation legacy materiau",
+                "prev": "",
+                "token_id": "QT-JK-LEGACY-MAT",
+                "card_id": "QT-EM-LEGACY-MAT",
+                "id": "QT-PR-LEGACY-MAT",
+                "objet": {
+                    "type": "fichier",
+                    "nom": "bienvenue.txt",
+                    "octets": len(brut),
+                    "sha256": hashlib.sha256(brut).hexdigest(),
+                },
+            },
+            2,
+        )
+        rec = check_paquet(signed, FICHIER)
+        self.assertTrue(rec["ok"], rec)
+        self.assertTrue(rec["signature_ok"])
+        self.assertTrue(rec["materiau_legacy"])
+        self.assertEqual(mot_verdict(rec), "VERT")
+
+    def test_objet_mismatch_vs_materiau_refuse(self):
+        sign = _signer()
+        brut = FICHIER.read_bytes()
+        import hashlib
+
+        sha = hashlib.sha256(brut).hexdigest()
+        signed = sign(
+            {
+                "fait": "attestation materiau objet",
+                "prev": "",
+                "token_id": "QT-JK-MAT-OBJ",
+                "card_id": "QT-EM-MAT-OBJ",
+                "id": "QT-PR-MAT-OBJ",
+                "objet": {
+                    "type": "fichier",
+                    "nom": "bienvenue.txt",
+                    "octets": len(brut),
+                    "sha256": sha,
+                },
+            },
+            2,
+        )
+        rec_ok = check_paquet(signed, FICHIER)
+        self.assertTrue(rec_ok["ok"], rec_ok)
+        self.assertFalse(rec_ok["materiau_legacy"])
+
+        tampered = dict(signed)
+        tampered["objet"] = dict(signed["objet"])
+        tampered["objet"]["sha256"] = hashlib.sha256(b"autre-objet").hexdigest()
+        tampered["empreinte"] = empreinte(tampered, 2)
+        rec = check_paquet(tampered, None)
+        self.assertTrue(rec["empreinte_ok"], "empreinte recomputed to match swapped objet")
+        self.assertFalse(rec["signature_ok"])
+        self.assertFalse(rec["ok"])
+        self.assertFalse(rec["materiau_legacy"])
+
+    def test_interop_jalon_2(self):
+        texte = (ROOT / "INTEROP.md").read_text(encoding="utf-8")
+        self.assertIn("jalon 2", texte)
+        self.assertIn("objet.sha256", texte)
+        self.assertIn("materiau_legacy", texte)
+        self.assertIn("empreinte", texte)
 
 
 class LegacyV1(unittest.TestCase):
