@@ -32,6 +32,8 @@ schema()                          # check.v0
 
 `UNFORGE-PREUVE-v2` `materiau()` is `{card_id}|{token_id}|REGISTRE|{empreinte}|{objet.sha256}|{objet.octets}`. `empreinte()` already hashes those objet fields; jalon 2 also writes them into the signed bytes so Ed25519 and ML-DSA-65 (`UFHY1`) both verify one canonical `message`, including the file link. If `materiau()` only embedded the `empreinte` hex, a future bug or alternate path that recomputed `empreinte()` differently from what was sealed would leave the signature unbound to `objet.sha256|octets` — the same class of silent card substitution already found on v1. Cards pressed before jalon 2 still verify: Check tries the new materiau first, then the legacy string without the trailing objet lien. A legacy hit sets `materiau_legacy: true` (structured note; the file can still VERT). Re-press to drop the note.
 
+`--horizon` + suite `ed25519` near `re_presser_avant` → `horizon_watch` (jalon 5).
+
 ## Exit
 
 | Code | Meaning |
