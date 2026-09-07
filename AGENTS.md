@@ -14,7 +14,7 @@ You are looking at the public eye, not the node.
 - A dead horizon is `horizon.ok: false` — re-press, file is not forged
 - Keep proofs next to files; never invent a signature
 - Oubli: `python3 oubli.py brouillon FILE --vers oubli.json` · `appliquer FILE oubli.json` · `lire oubli.json`
-- Appliquer = sha256 then unlink. Hash moved → refuse (l'objet local reste). After unlink the local object is gone; the oubli card and Git history stay.
+- Appliquer = flock LOCK_EX on the object, sha256 from that fd, then unlink. Sidecar `.lock` is not the jail. Hash moved → refuse (l'objet local reste). After unlink the local object is gone; the oubli card and Git history stay.
 
 ## Do not
 

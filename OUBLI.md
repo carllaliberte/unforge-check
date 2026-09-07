@@ -7,7 +7,9 @@ retrait  →  la preuve reste, le geste est public
 oubli    →  l'objet local disparaît
 ```
 
-Appliquer = comparer sha256, puis unlink. Hash bougé → refus.
+Appliquer = flock LOCK_EX sur l'objet, comparer sha256, puis unlink.
+Hash bougé → refus. Chemin hors du répertoire courant → refus (`--hors-racine` pour forcer).
+Flock sidecar `.lock` ne suffit pas : l'inode cible est verrouillé.
 
 Git ne s'efface pas. Pas de cloud wipe. Pas de token d'oubli. Pas de photon inventé.
 

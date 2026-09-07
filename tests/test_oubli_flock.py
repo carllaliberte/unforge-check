@@ -32,12 +32,26 @@ class FlockAppliquer(unittest.TestCase):
                 rec = appliquer(f, dest, hors_racine=True)
                 self.assertTrue(rec["ok"])
                 self.assertTrue(rec["unlinked"])
+                self.assertFalse((f.with_suffix(f.suffix + ".lock")).exists())
             calls = [c.args[1] for c in mock.flock.call_args_list]
             self.assertGreaterEqual(len(calls), 2)
             self.assertEqual(calls[0], mock.LOCK_EX)
             self.assertEqual(calls[-1], mock.LOCK_UN)
         finally:
             oubli.fcntl = orig
+
+    def test_appliquer_nettoie_sidecar_lock(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            f = Path(tmp) / "fichier.txt"
+            dest = Path(tmp) / "oubli.json"
+            f.write_text("reste\n", encoding="utf-8")
+            dest.write_text(json.dumps(brouillon(f), ensure_ascii=False, indent=2), encoding="utf-8")
+            sidecar = f.with_suffix(f.suffix + ".lock")
+            sidecar.write_text("old\n", encoding="utf-8")
+            rec = appliquer(f, dest, hors_racine=True)
+            self.assertTrue(rec["ok"])
+            self.assertFalse(f.exists())
+            self.assertFalse(sidecar.exists())
 
     def test_hors_racine_refuse_sans_flag(self):
         with tempfile.TemporaryDirectory() as tmp:
