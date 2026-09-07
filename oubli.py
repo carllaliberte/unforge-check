@@ -18,9 +18,23 @@ def sha256_fichier(chemin: Path) -> tuple[str, int]:
     return hashlib.sha256(brut).hexdigest(), len(brut)
 
 
+def sha256_fd(fh) -> tuple[str, int]:
+    fh.seek(0)
+    brut = fh.read()
+    return hashlib.sha256(brut).hexdigest(), len(brut)
+
+
 def _lock(path: Path):
     lock_path = path.with_suffix(path.suffix + ".lock")
     fh = open(lock_path, "a+", encoding="utf-8")
+    if fcntl is not None:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+    return fh
+
+
+def _lock_cible(path: Path):
+    """Flock the object itself. Sidecar .lock is not a jail on unlink."""
+    fh = open(path, "rb")
     if fcntl is not None:
         fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
     return fh
@@ -125,9 +139,9 @@ def appliquer(fichier: Path, oubli: Path, hors_racine: bool = False) -> dict:
             "erreur": "fichier introuvable",
             "phrase": "le fichier n'est plus là.",
         }
-    fh = _lock(fichier)
+    fh = _lock_cible(fichier)
     try:
-        sha, octets = sha256_fichier(fichier)
+        sha, octets = sha256_fd(fh)
         attendu = paquet.get("sha256") or ""
         if not attendu or sha != attendu:
             return {
@@ -145,6 +159,12 @@ def appliquer(fichier: Path, oubli: Path, hors_racine: bool = False) -> dict:
         _ecrire_json(oubli, paquet)
     finally:
         _unlock(fh)
+    sidecar = fichier.with_suffix(fichier.suffix + ".lock")
+    if sidecar.is_file():
+        try:
+            sidecar.unlink()
+        except OSError:
+            pass
     return {
         "ok": True,
         "geste": "oubli-appliquer",
