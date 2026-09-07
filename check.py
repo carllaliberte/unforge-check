@@ -25,6 +25,7 @@ HY = "UFHY1:"
 QUELLE_FMT = "quelle.v0"
 HORIZON_FMT = "horizon.v0"
 SUITES = ("ed25519", "UFHY1", "mldsa87")
+ALERTE_JOURS_DEFAUT = 90  # jalon 5 — même fenêtre qu'horizon-protocol ALERTE_JOURS_DEFAUT
 SCHEMA_ID = "check.v0"
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema" / "check.v0.json"
 MLDSA_MISSING = "ML-DSA non disponible dans cette installation"
@@ -200,6 +201,7 @@ def lire_horizon(chemin: Path) -> dict:
         courbe = "ML-DSA-87 (QUANTUM v0 ne signe pas)"
     else:
         courbe = "Ed25519"
+    watch = suite == "ed25519" and 0 < reste <= ALERTE_JOURS_DEFAUT
     if reste < 0:
         return {
             "ok": False,
@@ -207,6 +209,7 @@ def lire_horizon(chemin: Path) -> dict:
             "courbe": courbe,
             "re_presser_avant": jour_s,
             "jours_restants": reste,
+            "horizon_watch": False,
             "note": "périmé. le sceau n'est pas faux. resseller.",
         }
     return {
@@ -215,7 +218,14 @@ def lire_horizon(chemin: Path) -> dict:
         "courbe": courbe,
         "re_presser_avant": jour_s,
         "jours_restants": reste,
-        "note": "lue. pas signée ici.",
+        "horizon_watch": watch,
+        "note": (
+            "approche re_presser_avant. Ed25519 seul. encore "
+            + str(reste)
+            + " j. reseller avant la date."
+            if watch
+            else "lue. pas signée ici."
+        ),
     }
 
 
@@ -257,6 +267,8 @@ def phrase_check(rec: dict) -> str:
     horizon = rec.get("horizon")
     if isinstance(horizon, dict) and horizon.get("ok") is False:
         extras.append(horizon.get("note") or horizon.get("erreur") or "horizon périmé. resseller.")
+    elif isinstance(horizon, dict) and horizon.get("horizon_watch"):
+        extras.append(horizon.get("note") or "approche re_presser_avant.")
     return " ".join([base, *extras])
 
 

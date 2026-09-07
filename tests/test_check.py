@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from check import (  # noqa: E402
+    ALERTE_JOURS_DEFAUT,
     FORMAT_V1,
     FORMAT_V2,
     MLDSA_MISSING,
@@ -492,8 +493,68 @@ class Satellites(unittest.TestCase):
             rec = verifier(CARTE, FICHIER, horizon=h)
         self.assertTrue(rec["ok"], "dead horizon does not forge the file")
         self.assertFalse(rec["horizon"]["ok"])
+        self.assertFalse(rec["horizon"].get("horizon_watch"))
         self.assertEqual(code_sortie(rec), 1)
         self.assertIn("resseller", rec["phrase"])
+
+    def _horizon(self, suite: str, jours: int) -> dict:
+        jour = (datetime.now(timezone.utc).date() + timedelta(days=jours)).isoformat()
+        with tempfile.TemporaryDirectory() as tmp:
+            h = Path(tmp) / "h.horizon.json"
+            h.write_text(
+                json.dumps({"format": "horizon.v0", "suite": suite, "re_presser_avant": jour}),
+                encoding="utf-8",
+            )
+            return lire_horizon(h)
+
+    def test_horizon_watch_ed25519_dans_90j(self):
+        self.assertEqual(ALERTE_JOURS_DEFAUT, 90)
+        rec = self._horizon("ed25519", 30)
+        self.assertTrue(rec["ok"])
+        self.assertTrue(rec["horizon_watch"])
+        self.assertIn("approche re_presser_avant", rec["note"])
+        bord = self._horizon("ed25519", ALERTE_JOURS_DEFAUT)
+        self.assertTrue(bord["ok"])
+        self.assertTrue(bord["horizon_watch"])
+
+    def test_horizon_watch_ed25519_loin(self):
+        rec = self._horizon("ed25519", ALERTE_JOURS_DEFAUT + 1)
+        self.assertTrue(rec["ok"])
+        self.assertFalse(rec["horizon_watch"])
+        self.assertEqual(rec["note"], "lue. pas signée ici.")
+
+    def test_horizon_watch_ufhy1_dans_90j_pas_de_watch(self):
+        rec = self._horizon("UFHY1", 30)
+        self.assertTrue(rec["ok"])
+        self.assertFalse(rec.get("horizon_watch"))
+
+    def test_horizon_expire_toujours_ok_false(self):
+        rec = self._horizon("ed25519", -1)
+        self.assertFalse(rec["ok"])
+        self.assertFalse(rec.get("horizon_watch"))
+        self.assertIn("périmé", rec["note"])
+
+    def test_horizon_watch_ne_casse_pas_vert(self):
+        jour = (datetime.now(timezone.utc).date() + timedelta(days=30)).isoformat()
+        with tempfile.TemporaryDirectory() as tmp:
+            h = Path(tmp) / "h.horizon.json"
+            h.write_text(
+                json.dumps({"format": "horizon.v0", "suite": "ed25519", "re_presser_avant": jour}),
+                encoding="utf-8",
+            )
+            rec = verifier(CARTE, FICHIER, horizon=h)
+        self.assertTrue(rec["ok"])
+        self.assertTrue(rec["horizon"]["ok"])
+        self.assertTrue(rec["horizon"]["horizon_watch"])
+        self.assertEqual(mot_verdict(rec), "VERT")
+        self.assertEqual(code_sortie(rec), 0)
+        self.assertIn("approche re_presser_avant", rec["phrase"])
+
+    def test_interop_jalon_5(self):
+        texte = (ROOT / "INTEROP.md").read_text(encoding="utf-8")
+        self.assertIn("jalon 5", texte)
+        self.assertIn("horizon_watch", texte)
+        self.assertIn("--horizon", texte)
 
 
 class Resoudre(unittest.TestCase):
