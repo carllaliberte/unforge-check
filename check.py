@@ -235,6 +235,8 @@ def phrase_check(rec: dict) -> str:
         return "pas UNFORGE-PREUVE-v1 ou v2."
     if err == "format-v1":
         return "v1 tient mais n'inclut pas objet. resseller en v2."
+    if err == "materiau-legacy":
+        return "objet non couvert par la signature d'origine — resseller en v2 jalon 2."
     if err == "cette preuve ne constate pas un fichier":
         return "cette carte ne constate pas un fichier."
     if err == "preuve introuvable":
@@ -348,6 +350,9 @@ def check_paquet(paquet: dict, fichier: Path | None) -> dict:
             "legacy": False,
             "materiau_legacy": mat_legacy,
         }
+        if mat_legacy and fichier_ok is True:
+            rec["ok"] = False
+            rec["erreur"] = "materiau-legacy"
     if sha_attendu is not None:
         rec["sha256_attendu"] = sha_attendu
     if octets is not None:
@@ -422,7 +427,11 @@ def _colorer() -> bool:
 
 
 def mot_verdict(rec: dict) -> str:
-    """VERT | AMBRE | ROUGE — digest/match only. Never a receipt. Does not sign."""
+    """VERT | AMBRE | ROUGE — digest/match only. Never a receipt. Does not sign.
+
+    materiau_legacy on v2 is the same class as v1: the signature did not
+    cover objet. Never VERT when a file is presented.
+    """
     fichier_tient = rec.get("ok") is True
     sat = satellites_ok(rec)
     legacy_lu = (
@@ -431,9 +440,21 @@ def mot_verdict(rec: dict) -> str:
         and rec.get("signature_ok") is True
         and rec.get("fichier_ok") is not False
     )
-    if fichier_tient and sat:
+    materiau_legacy_lu = (
+        rec.get("materiau_legacy") is True
+        and rec.get("empreinte_ok") is True
+        and rec.get("signature_ok") is True
+        and rec.get("fichier_ok") is not None
+        and rec.get("fichier_ok") is not False
+    )
+    if (
+        fichier_tient
+        and sat
+        and rec.get("legacy") is not True
+        and rec.get("materiau_legacy") is not True
+    ):
         return "VERT"
-    if (fichier_tient and not sat) or legacy_lu:
+    if (fichier_tient and not sat) or legacy_lu or materiau_legacy_lu:
         return "AMBRE"
     return "ROUGE"
 

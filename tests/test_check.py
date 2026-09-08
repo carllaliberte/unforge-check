@@ -6,6 +6,7 @@ Local Ed25519 keys below are test fixtures, labelled DEMO, not Carl's node.
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import subprocess
 import sys
@@ -93,9 +94,31 @@ def _signer(*, legacy_materiau: bool = False):
     return sign
 
 
+def _paquet_v2_jalon2() -> dict:
+    """v2 card whose signature covers objet.sha256|octets (jalon 2)."""
+    sign = _signer()
+    brut = FICHIER.read_bytes()
+    return sign(
+        {
+            "fait": "attestation jalon 2",
+            "prev": "",
+            "token_id": "QT-JK-J2",
+            "card_id": "QT-EM-J2",
+            "id": "QT-PR-J2",
+            "objet": {
+                "type": "fichier",
+                "nom": "bienvenue.txt",
+                "octets": len(brut),
+                "sha256": hashlib.sha256(brut).hexdigest(),
+            },
+        },
+        2,
+    )
+
+
 class CheckFichier(unittest.TestCase):
     def test_couple_tient(self):
-        rec = check(CARTE, FICHIER)
+        rec = check_paquet(_paquet_v2_jalon2(), FICHIER)
         self.assertTrue(rec["ok"])
         self.assertTrue(rec["empreinte_ok"])
         self.assertTrue(rec["signature_ok"])
@@ -108,6 +131,8 @@ class CheckFichier(unittest.TestCase):
         self.assertEqual(rec["octets"], FICHIER.stat().st_size)
         self.assertEqual(rec["format"], FORMAT_V2)
         self.assertFalse(rec["legacy"])
+        self.assertFalse(rec["materiau_legacy"])
+        self.assertEqual(mot_verdict(rec), "VERT")
 
     def test_carte_seule(self):
         rec = check(CARTE, None)
@@ -336,18 +361,21 @@ class HybrideMateriauJalon2(unittest.TestCase):
         self.assertEqual(appels[2][1], materiau_legacy(p))
         self.assertNotEqual(appels[0][1], appels[2][1])
 
-    def test_fixture_v2_legacy_materiau_vert(self):
+    def test_fixture_v2_legacy_materiau_ambre(self):
         rec = check(CARTE, FICHIER)
-        self.assertTrue(rec["ok"])
+        self.assertFalse(rec["ok"])
         self.assertTrue(rec["signature_ok"])
+        self.assertTrue(rec["fichier_ok"])
         self.assertTrue(rec["materiau_legacy"])
-        self.assertEqual(mot_verdict(rec), "VERT")
+        self.assertEqual(rec["erreur"], "materiau-legacy")
+        self.assertEqual(mot_verdict(rec), "AMBRE")
+        self.assertIn("objet non couvert par la signature d'origine", rec["phrase"])
+        self.assertIn("resseller en v2 jalon 2", rec["phrase"])
+        self.assertEqual(code_sortie(rec), 1)
 
     def test_signature_legacy_synthetique_tient(self):
         sign = _signer(legacy_materiau=True)
         brut = FICHIER.read_bytes()
-        import hashlib
-
         signed = sign(
             {
                 "fait": "attestation legacy materiau",
@@ -365,10 +393,47 @@ class HybrideMateriauJalon2(unittest.TestCase):
             2,
         )
         rec = check_paquet(signed, FICHIER)
-        self.assertTrue(rec["ok"], rec)
+        self.assertFalse(rec["ok"], rec)
         self.assertTrue(rec["signature_ok"])
         self.assertTrue(rec["materiau_legacy"])
-        self.assertEqual(mot_verdict(rec), "VERT")
+        self.assertEqual(mot_verdict(rec), "AMBRE")
+        self.assertIn("objet non couvert par la signature d'origine", rec["phrase"])
+
+    def test_objet_swap_after_materiau_legacy_never_vert(self):
+        """v2 signed only on materiau_legacy: swapping objet.sha256 to another file is never VERT."""
+        sign = _signer(legacy_materiau=True)
+        brut = FICHIER.read_bytes()
+        autre = b"objet-substitue-apres-signature"
+        signed = sign(
+            {
+                "fait": "attestation legacy materiau swap",
+                "prev": "",
+                "token_id": "QT-JK-LEGACY-SWAP",
+                "card_id": "QT-EM-LEGACY-SWAP",
+                "id": "QT-PR-LEGACY-SWAP",
+                "objet": {
+                    "type": "fichier",
+                    "nom": "bienvenue.txt",
+                    "octets": len(brut),
+                    "sha256": hashlib.sha256(brut).hexdigest(),
+                },
+            },
+            2,
+        )
+        tampered = dict(signed)
+        tampered["objet"] = dict(signed["objet"])
+        tampered["objet"]["sha256"] = hashlib.sha256(autre).hexdigest()
+        tampered["objet"]["octets"] = len(autre)
+        with tempfile.TemporaryDirectory() as tmp:
+            autre_path = Path(tmp) / "autre.txt"
+            autre_path.write_bytes(autre)
+            rec = check_paquet(tampered, autre_path)
+        self.assertTrue(rec["signature_ok"], "legacy materiau still verifies the old empreinte")
+        self.assertTrue(rec["materiau_legacy"])
+        self.assertTrue(rec["fichier_ok"], "presented file matches the swapped objet")
+        self.assertFalse(rec["ok"])
+        self.assertNotEqual(mot_verdict(rec), "VERT")
+        self.assertEqual(code_sortie(rec), 1)
 
     def test_objet_mismatch_vs_materiau_refuse(self):
         sign = _signer()
@@ -490,7 +555,9 @@ class Satellites(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             h = Path(tmp) / "h.horizon.json"
             h.write_text(json.dumps({"format": "horizon.v0", "suite": "ed25519", "re_presser_avant": jour}), encoding="utf-8")
-            rec = verifier(CARTE, FICHIER, horizon=h)
+            c = Path(tmp) / "jalon2.unforge.json"
+            c.write_text(json.dumps(_paquet_v2_jalon2()), encoding="utf-8")
+            rec = verifier(c, FICHIER, horizon=h)
         self.assertTrue(rec["ok"], "dead horizon does not forge the file")
         self.assertFalse(rec["horizon"]["ok"])
         self.assertFalse(rec["horizon"].get("horizon_watch"))
@@ -542,7 +609,9 @@ class Satellites(unittest.TestCase):
                 json.dumps({"format": "horizon.v0", "suite": "ed25519", "re_presser_avant": jour}),
                 encoding="utf-8",
             )
-            rec = verifier(CARTE, FICHIER, horizon=h)
+            c = Path(tmp) / "jalon2.unforge.json"
+            c.write_text(json.dumps(_paquet_v2_jalon2()), encoding="utf-8")
+            rec = verifier(c, FICHIER, horizon=h)
         self.assertTrue(rec["ok"])
         self.assertTrue(rec["horizon"]["ok"])
         self.assertTrue(rec["horizon"]["horizon_watch"])
@@ -594,7 +663,12 @@ class SchemaEtHabit(unittest.TestCase):
 
 class CLI(unittest.TestCase):
     def test_couple_exit_0(self):
-        r = _run([str(FICHIER), str(CARTE)])
+        with tempfile.TemporaryDirectory() as tmp:
+            f = Path(tmp) / "bienvenue.txt"
+            f.write_bytes(FICHIER.read_bytes())
+            c = Path(str(f) + ".unforge.json")
+            c.write_text(json.dumps(_paquet_v2_jalon2()), encoding="utf-8")
+            r = _run([str(f), str(c)])
         self.assertEqual(r.returncode, 0, r.stderr)
         rec = json.loads(r.stdout)
         self.assertTrue(rec["ok"])
@@ -602,14 +676,26 @@ class CLI(unittest.TestCase):
         self.assertEqual(rec["format"], FORMAT_V2)
 
     def test_voisin_une_commande(self):
-        r = _run([str(FICHIER)])
+        with tempfile.TemporaryDirectory() as tmp:
+            f = Path(tmp) / "bienvenue.txt"
+            f.write_bytes(FICHIER.read_bytes())
+            Path(str(f) + ".unforge.json").write_text(
+                json.dumps(_paquet_v2_jalon2()), encoding="utf-8"
+            )
+            r = _run([str(f)])
         self.assertEqual(r.returncode, 0, r.stderr)
         rec = json.loads(r.stdout)
         self.assertTrue(rec["ok"])
         self.assertTrue(rec["fichier_ok"])
 
     def test_human(self):
-        r = _run([str(FICHIER), "--human"], env={**os.environ, "NO_COLOR": "1"})
+        with tempfile.TemporaryDirectory() as tmp:
+            f = Path(tmp) / "bienvenue.txt"
+            f.write_bytes(FICHIER.read_bytes())
+            Path(str(f) + ".unforge.json").write_text(
+                json.dumps(_paquet_v2_jalon2()), encoding="utf-8"
+            )
+            r = _run([str(f), "--human"], env={**os.environ, "NO_COLOR": "1"})
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("VERT", r.stdout)
         self.assertIn("le fichier correspond à la carte.", r.stdout)
@@ -617,9 +703,13 @@ class CLI(unittest.TestCase):
 
     def test_summary_vert(self):
         with tempfile.TemporaryDirectory() as tmp:
+            f = Path(tmp) / "bienvenue.txt"
+            f.write_bytes(FICHIER.read_bytes())
+            c = Path(str(f) + ".unforge.json")
+            c.write_text(json.dumps(_paquet_v2_jalon2()), encoding="utf-8")
             dest = Path(tmp) / "summary.md"
             env = {**os.environ, "NO_COLOR": "1", "GITHUB_STEP_SUMMARY": str(dest)}
-            r = _run([str(FICHIER), "--summary"], env=env)
+            r = _run([str(f), str(c), "--summary"], env=env)
             text = dest.read_text(encoding="utf-8")
         self.assertEqual(r.returncode, 0, r.stderr)
         rec = json.loads(r.stdout)
@@ -688,15 +778,27 @@ class WordingHold(unittest.TestCase):
     )
 
     def test_vert_est_match(self):
-        rec = check(CARTE, FICHIER)
+        rec = check_paquet(_paquet_v2_jalon2(), FICHIER)
         self.assertTrue(rec["ok"])
         ligne = ligne_verdict(rec, color=False)
         self.assertTrue(ligne.startswith("VERT"))
         self.assertIn("le fichier correspond à la carte.", ligne)
-        r = _run([str(FICHIER), "--human"], env={**os.environ, "NO_COLOR": "1"})
+        with tempfile.TemporaryDirectory() as tmp:
+            f = Path(tmp) / "bienvenue.txt"
+            f.write_bytes(FICHIER.read_bytes())
+            carte = Path(str(f) + ".unforge.json")
+            carte.write_text(json.dumps(_paquet_v2_jalon2()), encoding="utf-8")
+            r = _run([str(f), "--human"], env={**os.environ, "NO_COLOR": "1"})
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertTrue(r.stdout.splitlines()[0].startswith("VERT"))
         self.assertIn("le fichier correspond à la carte.", r.stdout)
+
+    def test_example_legacy_materiau_is_ambre(self):
+        rec = check(CARTE, FICHIER)
+        self.assertEqual(mot_verdict(rec), "AMBRE")
+        r = _run([str(FICHIER), "--human"], env={**os.environ, "NO_COLOR": "1"})
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertTrue(r.stdout.splitlines()[0].startswith("AMBRE"))
 
     def test_vert_match_dans_readme_interop_aide_schema(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -782,7 +884,7 @@ class CiBadge(unittest.TestCase):
     """CI badge / job summary: digest/match only. Does not sign."""
 
     def test_mot_verdict_couple(self):
-        rec = check(CARTE, FICHIER)
+        rec = check_paquet(_paquet_v2_jalon2(), FICHIER)
         self.assertEqual(mot_verdict(rec), "VERT")
         md = resume_markdown(rec)
         self.assertIn("## VERT — file matches the card", md)
