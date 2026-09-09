@@ -94,31 +94,9 @@ def _signer(*, legacy_materiau: bool = False):
     return sign
 
 
-def _paquet_v2_jalon2() -> dict:
-    """v2 card whose signature covers objet.sha256|octets (jalon 2)."""
-    sign = _signer()
-    brut = FICHIER.read_bytes()
-    return sign(
-        {
-            "fait": "attestation jalon 2",
-            "prev": "",
-            "token_id": "QT-JK-J2",
-            "card_id": "QT-EM-J2",
-            "id": "QT-PR-J2",
-            "objet": {
-                "type": "fichier",
-                "nom": "bienvenue.txt",
-                "octets": len(brut),
-                "sha256": hashlib.sha256(brut).hexdigest(),
-            },
-        },
-        2,
-    )
-
-
 class CheckFichier(unittest.TestCase):
     def test_couple_tient(self):
-        rec = check_paquet(_paquet_v2_jalon2(), FICHIER)
+        rec = check(CARTE, FICHIER)
         self.assertTrue(rec["ok"])
         self.assertTrue(rec["empreinte_ok"])
         self.assertTrue(rec["signature_ok"])
@@ -361,17 +339,16 @@ class HybrideMateriauJalon2(unittest.TestCase):
         self.assertEqual(appels[2][1], materiau_legacy(p))
         self.assertNotEqual(appels[0][1], appels[2][1])
 
-    def test_fixture_v2_legacy_materiau_ambre(self):
+    def test_fixture_v2_jalon2_vert(self):
         rec = check(CARTE, FICHIER)
-        self.assertFalse(rec["ok"])
+        self.assertTrue(rec["ok"])
         self.assertTrue(rec["signature_ok"])
         self.assertTrue(rec["fichier_ok"])
-        self.assertTrue(rec["materiau_legacy"])
-        self.assertEqual(rec["erreur"], "materiau-legacy")
-        self.assertEqual(mot_verdict(rec), "AMBRE")
-        self.assertIn("objet non couvert par la signature d'origine", rec["phrase"])
-        self.assertIn("resseller en v2 jalon 2", rec["phrase"])
-        self.assertEqual(code_sortie(rec), 1)
+        self.assertFalse(rec["materiau_legacy"])
+        self.assertNotIn("erreur", rec)
+        self.assertEqual(mot_verdict(rec), "VERT")
+        self.assertEqual(rec["phrase"], "le fichier correspond à la carte.")
+        self.assertEqual(code_sortie(rec), 0)
 
     def test_signature_legacy_synthetique_tient(self):
         sign = _signer(legacy_materiau=True)
@@ -555,9 +532,7 @@ class Satellites(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             h = Path(tmp) / "h.horizon.json"
             h.write_text(json.dumps({"format": "horizon.v0", "suite": "ed25519", "re_presser_avant": jour}), encoding="utf-8")
-            c = Path(tmp) / "jalon2.unforge.json"
-            c.write_text(json.dumps(_paquet_v2_jalon2()), encoding="utf-8")
-            rec = verifier(c, FICHIER, horizon=h)
+            rec = verifier(CARTE, FICHIER, horizon=h)
         self.assertTrue(rec["ok"], "dead horizon does not forge the file")
         self.assertFalse(rec["horizon"]["ok"])
         self.assertFalse(rec["horizon"].get("horizon_watch"))
@@ -609,9 +584,7 @@ class Satellites(unittest.TestCase):
                 json.dumps({"format": "horizon.v0", "suite": "ed25519", "re_presser_avant": jour}),
                 encoding="utf-8",
             )
-            c = Path(tmp) / "jalon2.unforge.json"
-            c.write_text(json.dumps(_paquet_v2_jalon2()), encoding="utf-8")
-            rec = verifier(c, FICHIER, horizon=h)
+            rec = verifier(CARTE, FICHIER, horizon=h)
         self.assertTrue(rec["ok"])
         self.assertTrue(rec["horizon"]["ok"])
         self.assertTrue(rec["horizon"]["horizon_watch"])
@@ -663,39 +636,23 @@ class SchemaEtHabit(unittest.TestCase):
 
 class CLI(unittest.TestCase):
     def test_couple_exit_0(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            f = Path(tmp) / "bienvenue.txt"
-            f.write_bytes(FICHIER.read_bytes())
-            c = Path(str(f) + ".unforge.json")
-            c.write_text(json.dumps(_paquet_v2_jalon2()), encoding="utf-8")
-            r = _run([str(f), str(c)])
+        r = _run([str(FICHIER), str(CARTE)])
         self.assertEqual(r.returncode, 0, r.stderr)
         rec = json.loads(r.stdout)
         self.assertTrue(rec["ok"])
         self.assertEqual(rec["geste"], "check")
         self.assertEqual(rec["format"], FORMAT_V2)
+        self.assertFalse(rec["materiau_legacy"])
 
     def test_voisin_une_commande(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            f = Path(tmp) / "bienvenue.txt"
-            f.write_bytes(FICHIER.read_bytes())
-            Path(str(f) + ".unforge.json").write_text(
-                json.dumps(_paquet_v2_jalon2()), encoding="utf-8"
-            )
-            r = _run([str(f)])
+        r = _run([str(FICHIER)])
         self.assertEqual(r.returncode, 0, r.stderr)
         rec = json.loads(r.stdout)
         self.assertTrue(rec["ok"])
         self.assertTrue(rec["fichier_ok"])
 
     def test_human(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            f = Path(tmp) / "bienvenue.txt"
-            f.write_bytes(FICHIER.read_bytes())
-            Path(str(f) + ".unforge.json").write_text(
-                json.dumps(_paquet_v2_jalon2()), encoding="utf-8"
-            )
-            r = _run([str(f), "--human"], env={**os.environ, "NO_COLOR": "1"})
+        r = _run([str(FICHIER), "--human"], env={**os.environ, "NO_COLOR": "1"})
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("VERT", r.stdout)
         self.assertIn("le fichier correspond à la carte.", r.stdout)
@@ -703,13 +660,9 @@ class CLI(unittest.TestCase):
 
     def test_summary_vert(self):
         with tempfile.TemporaryDirectory() as tmp:
-            f = Path(tmp) / "bienvenue.txt"
-            f.write_bytes(FICHIER.read_bytes())
-            c = Path(str(f) + ".unforge.json")
-            c.write_text(json.dumps(_paquet_v2_jalon2()), encoding="utf-8")
             dest = Path(tmp) / "summary.md"
             env = {**os.environ, "NO_COLOR": "1", "GITHUB_STEP_SUMMARY": str(dest)}
-            r = _run([str(f), str(c), "--summary"], env=env)
+            r = _run([str(FICHIER), "--summary"], env=env)
             text = dest.read_text(encoding="utf-8")
         self.assertEqual(r.returncode, 0, r.stderr)
         rec = json.loads(r.stdout)
@@ -778,27 +731,23 @@ class WordingHold(unittest.TestCase):
     )
 
     def test_vert_est_match(self):
-        rec = check_paquet(_paquet_v2_jalon2(), FICHIER)
+        rec = check(CARTE, FICHIER)
         self.assertTrue(rec["ok"])
         ligne = ligne_verdict(rec, color=False)
         self.assertTrue(ligne.startswith("VERT"))
         self.assertIn("le fichier correspond à la carte.", ligne)
-        with tempfile.TemporaryDirectory() as tmp:
-            f = Path(tmp) / "bienvenue.txt"
-            f.write_bytes(FICHIER.read_bytes())
-            carte = Path(str(f) + ".unforge.json")
-            carte.write_text(json.dumps(_paquet_v2_jalon2()), encoding="utf-8")
-            r = _run([str(f), "--human"], env={**os.environ, "NO_COLOR": "1"})
+        r = _run([str(FICHIER), "--human"], env={**os.environ, "NO_COLOR": "1"})
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertTrue(r.stdout.splitlines()[0].startswith("VERT"))
         self.assertIn("le fichier correspond à la carte.", r.stdout)
 
-    def test_example_legacy_materiau_is_ambre(self):
+    def test_example_public_couple_is_vert(self):
         rec = check(CARTE, FICHIER)
-        self.assertEqual(mot_verdict(rec), "AMBRE")
+        self.assertFalse(rec["materiau_legacy"])
+        self.assertEqual(mot_verdict(rec), "VERT")
         r = _run([str(FICHIER), "--human"], env={**os.environ, "NO_COLOR": "1"})
-        self.assertEqual(r.returncode, 1, r.stderr)
-        self.assertTrue(r.stdout.splitlines()[0].startswith("AMBRE"))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue(r.stdout.splitlines()[0].startswith("VERT"))
 
     def test_vert_match_dans_readme_interop_aide_schema(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -884,7 +833,7 @@ class CiBadge(unittest.TestCase):
     """CI badge / job summary: digest/match only. Does not sign."""
 
     def test_mot_verdict_couple(self):
-        rec = check_paquet(_paquet_v2_jalon2(), FICHIER)
+        rec = check(CARTE, FICHIER)
         self.assertEqual(mot_verdict(rec), "VERT")
         md = resume_markdown(rec)
         self.assertIn("## VERT — file matches the card", md)
